@@ -100,6 +100,14 @@
   .time-col{text-align:right;display:flex;flex-direction:column;justify-content:center}
   .time-num{font-size:25px;font-weight:900;font-variant-numeric:tabular-nums;margin-top:2px}
   .time-sub{font-size:9.5px;color:var(--muted);margin-top:2px}
+  .gps-row{margin-top:9px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--fg)}
+  .gps-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
+  .gps-dot.live{background:var(--ok);animation:gpsPulse 1.4s infinite}
+  .gps-dot.warn{background:var(--warn)}
+  .gps-dot.off{background:var(--danger)}
+  @keyframes gpsPulse{0%,100%{box-shadow:0 0 0 0 rgba(5,150,105,.4)}50%{box-shadow:0 0 0 5px rgba(5,150,105,0)}}
+  .gps-sep{color:var(--border)}
+  .gps-status{color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mode-toggle{margin-top:10px;padding:4px;display:grid;grid-template-columns:1fr 1fr;gap:4px}
   .mode-toggle button{border:none;background:transparent;border-radius:13px;padding:9px 4px;font-family:inherit;font-weight:800;font-size:13px;color:var(--muted);cursor:pointer}
   .mode-toggle button.active{background:var(--brand-grad);color:#fff;box-shadow:var(--shadow-pop)}
@@ -218,6 +226,12 @@
             <div class="time-sub">Đạt từ 80 điểm</div>
           </div>
         </div>
+        <div class="gps-row">
+          <span class="gps-dot" id="gpsDot"></span>
+          <span id="gpsDistance">0.00 km</span>
+          <span class="gps-sep">·</span>
+          <span id="gpsStatusText" class="gps-status">GPS chưa bật</span>
+        </div>
       </div>
     </div>
 
@@ -280,6 +294,8 @@
         <p>Diễn ra trên đường thực tế, gồm 4 giai đoạn: xuất phát, tăng số &amp; tăng tốc độ, giảm số &amp; giảm tốc độ, dừng xe kết thúc. Trọng tâm chấm điểm là kỹ năng côn — số — ga — phanh khi tăng/giảm tốc, giữ đúng làn đường và tuân thủ hiệu lệnh của sát hạch viên. Các lỗi nghiêm trọng như choạng lái quá làn, không theo hiệu lệnh, hoặc xử lý tình huống gây tai nạn đều là lỗi liệt.</p>
         <h3>Số sàn và số tự động</h3>
         <p>Chọn <strong>Số sàn</strong> hoặc <strong>Số tự động</strong> ngay dưới thanh chuyển chế độ. Các lỗi thao tác côn — tay số (ví dụ: dùng tay số không phù hợp, vòng tua động cơ quá mức, không vào đúng số, choạng lái khi sang số, lỗi đổi số...) chỉ áp dụng cho xe số sàn và sẽ tự ẩn khi chọn Số tự động, vì xe số tự động không có các thao tác này.</p>
+        <h3>Đo quãng đường bằng GPS</h3>
+        <p>Từ lúc bấm <strong>Thi thật</strong>, trang sẽ xin quyền truy cập vị trí và dùng GPS của thiết bị để ước tính quãng đường đã di chuyển, hiển thị ngay dưới điểm số. Quãng đường tạm dừng đếm khi bạn bấm <strong>Kết thúc</strong> và tiếp tục khi <strong>Tiếp tục</strong>/<strong>Thi lại</strong>. Đây chỉ là số liệu tham khảo (độ chính xác phụ thuộc tín hiệu GPS của thiết bị), không dùng để chấm điểm.</p>
         <h3>Cách dùng trang mô phỏng</h3>
         <ol>
           <li>Chọn chế độ <em>Sa hình</em> hoặc <em>Đường trường</em>.</li>
@@ -506,6 +522,10 @@ let playingKey = null;
 let audioEl = new Audio();
 let deltaTimer = null;
 let history = []; // { t: elapsedMs, bai, label, points, critical }
+let gpsWatchId = null;
+let lastGpsFix = null; // { lat, lon, t }
+let distanceMeters = 0;
+let gpsStatus = "idle"; // idle | active | denied | unavailable | error
 
 const $ = (id) => document.getElementById(id);
 
@@ -562,6 +582,72 @@ function renderHistoryBadge(){
 }
 function resetHistory(){ history = []; renderHistoryBadge(); }
 
+// ---------------- GPS: đo quãng đường đã di chuyển kể từ khi bấm Thi thật ----------------
+function haversineMeters(lat1, lon1, lat2, lon2){
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function onGpsFix(pos){
+  const { latitude, longitude, accuracy } = pos.coords;
+  gpsStatus = "active";
+  // bỏ qua điểm định vị quá nhiễu (độ chính xác kém)
+  if(accuracy != null && accuracy > 40){ renderGps(); return; }
+  if(lastGpsFix){
+    const d = haversineMeters(lastGpsFix.lat, lastGpsFix.lon, latitude, longitude);
+    const dtSec = (pos.timestamp - lastGpsFix.t) / 1000;
+    const speedKmh = dtSec > 0 ? (d / dtSec) * 3.6 : 0;
+    // bỏ qua rung lắc GPS khi đứng yên (<2m) và các cú nhảy phi thực tế (>150km/h)
+    if(d >= 2 && speedKmh < 150) distanceMeters += d;
+  }
+  lastGpsFix = { lat: latitude, lon: longitude, t: pos.timestamp };
+  renderGps();
+}
+function onGpsError(err){
+  gpsStatus = (err.code === err.PERMISSION_DENIED) ? "denied" : "error";
+  renderGps();
+}
+function startGpsTracking(){
+  if(gpsWatchId !== null) return;
+  if(!("geolocation" in navigator)){ gpsStatus = "unavailable"; renderGps(); return; }
+  gpsStatus = "active";
+  gpsWatchId = navigator.geolocation.watchPosition(onGpsFix, onGpsError, {
+    enableHighAccuracy: true, maximumAge: 1000, timeout: 15000
+  });
+  renderGps();
+}
+function stopGpsTracking(){
+  if(gpsWatchId !== null){ navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+  lastGpsFix = null; // tránh cộng nhầm quãng đường trong lúc tạm dừng
+  if(gpsStatus === "active") gpsStatus = "idle";
+  renderGps();
+}
+function resetGps(){
+  stopGpsTracking();
+  distanceMeters = 0;
+  gpsStatus = "idle";
+  renderGps();
+}
+function renderGps(){
+  const dot = $("gpsDot");
+  $("gpsDistance").textContent = (distanceMeters / 1000).toFixed(2) + " km";
+  dot.className = "gps-dot";
+  const statusText = {
+    idle: "GPS chưa bật",
+    active: "Đang định vị GPS",
+    denied: "Bạn đã từ chối quyền vị trí",
+    unavailable: "Thiết bị không hỗ trợ GPS",
+    error: "Mất tín hiệu GPS, đang thử lại…",
+  }[gpsStatus];
+  $("gpsStatusText").textContent = statusText;
+  if(gpsStatus === "active") dot.classList.add("live");
+  else if(gpsStatus === "denied" || gpsStatus === "unavailable") dot.classList.add("off");
+  else if(gpsStatus === "error") dot.classList.add("warn");
+}
+
 function startAutoTimerXuatPhat(){
   clearAutoTimers();
   autoTimers.push(setTimeout(()=>{
@@ -593,6 +679,8 @@ function startExam(){
   elapsedMs = 0;
   $("scoreDelta").textContent = "";
   resetHistory();
+  resetGps();
+  startGpsTracking();
   startedAt = Date.now();
   isLive = true;
   hasStarted = true;
@@ -615,6 +703,7 @@ function resumeExam(){
   stopSound();
   isTimeoutFail = false;
   startedAt = Date.now() - elapsedMs;
+  startGpsTracking();
   isLive = true;
   clearInterval(elapsedTimer);
   elapsedTimer = setInterval(tickElapsed, 250);
@@ -627,6 +716,7 @@ function endExam(){
   stopSound();
   clearAutoTimers();
   clearInterval(elapsedTimer);
+  stopGpsTracking();
   isLive = false;
   render();
 }
@@ -685,6 +775,7 @@ function doSwitchMode(newKey){
   isLive = false; hasStarted = false; isLoai = false; isTimeoutFail = false;
   score = 100; elapsedMs = 0; $("scoreDelta").textContent = "";
   resetHistory();
+  resetGps();
   modeKey = newKey;
   render();
 }
