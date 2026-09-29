@@ -294,6 +294,7 @@
         <p>Gồm 11 bài thi liên hoàn trong sân sa hình (xuất phát, dừng nhường người đi bộ, ngang dốc, vệt bánh xe, ngã tư, quanh co, ghép dọc, đường sắt, đổi số, ghép ngang, kết thúc) cộng thêm bài tình huống khẩn cấp. Riêng bài xuất phát có đồng hồ đếm ngược: quá 20 giây chưa khởi hành bị trừ 5 điểm, quá 30 giây bị đánh trượt ngay.</p>
         <h3>Phần thi Đường trường</h3>
         <p>Diễn ra trên đường thực tế, gồm 4 giai đoạn: xuất phát, tăng số &amp; tăng tốc độ, giảm số &amp; giảm tốc độ, dừng xe kết thúc. Trọng tâm chấm điểm là kỹ năng côn — số — ga — phanh khi tăng/giảm tốc, giữ đúng làn đường và tuân thủ hiệu lệnh của sát hạch viên. Các lỗi nghiêm trọng như choạng lái quá làn, không theo hiệu lệnh, hoặc xử lý tình huống gây tai nạn đều là lỗi liệt.</p>
+        <p>Riêng bài <strong>Khẩn cấp</strong> (nhãn KC) mô phỏng các tình huống bất ngờ thường gặp khi lái xe trên đường: nhường đường người đi bộ, chướng ngại vật phía trước, xe nổ lốp/mất lái... Đây là các nút bấm rời để giả lập từng tình huống bất kỳ lúc nào trong lượt thi, không theo thứ tự cố định như 4 giai đoạn còn lại.</p>
         <h3>Số sàn và số tự động</h3>
         <p>Chọn <strong>Số sàn</strong> hoặc <strong>Số tự động</strong> ngay ở màn hình bắt đầu, trước khi vào bài thi. Các lỗi thao tác côn — tay số (ví dụ: dùng tay số không phù hợp, vòng tua động cơ quá mức, không vào đúng số, choạng lái khi sang số, lỗi đổi số...) chỉ áp dụng cho xe số sàn và sẽ tự ẩn khi chọn Số tự động, vì xe số tự động không có các thao tác này. Muốn đổi lại loại bài thi hoặc hộp số, bấm mũi tên quay lại ở góc trên bên trái.</p>
         <h3>Đo quãng đường bằng GPS</h3>
@@ -469,6 +470,13 @@ const MODES = [
         {label:"Không giảm hết số khi dừng xe", file:"khong-giam-het-so.wav"},
         {label:"Không bật xi nhan phải trước khi dừng", file:"khong-bat-xi-nhan-phai.wav"},
         {label:"Không kéo hết phanh tay khi dừng xe", file:"khong-keo-het-phanh.wav"},
+      ]},
+      { id:0, name:"Tình huống khẩn cấp trên đường trường", short:"Khẩn cấp", announce:"khan-cap.wav", special:"emergency", errors:[
+        {label:"Không nhường đường người đi bộ qua đường", file:"dung-xe-nhuong-duong-cho-nguoi-di-bo.wav", critical:true},
+        {label:"Xử lý chướng ngại vật phía trước không hợp lý", file:"xu-ly-tinh-huong-khong-hop-ly.wav", points:10},
+        {label:"Không xử lý kịp khi xe nổ lốp / mất lái", file:"xu-ly-tinh-huong-khong-hop-ly-2.wav", critical:true},
+        {label:"Xử lý tình huống bất ngờ gây tai nạn", file:"xu-ly-tinh-huong-khong-hop-ly-gay-tai-nan.wav", critical:true},
+        {label:"Không theo hiệu lệnh sát hạch viên", file:"khong-thuc-hien-theo-hieu-lenh-cua-sat-hoach-vien.wav", critical:true},
       ]},
     ]
   }
@@ -909,7 +917,7 @@ function renderSetupOptions(){
   modeBox.innerHTML = "";
   const modeInfo = {
     "sa-hinh": "11 bài trong sân sa hình + tình huống khẩn cấp",
-    "duong-truong": "4 giai đoạn lái xe trên đường thực tế",
+    "duong-truong": "4 giai đoạn lái xe thực tế + tình huống khẩn cấp",
   };
   MODES.forEach(m=>{
     const b = document.createElement("button");
