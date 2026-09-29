@@ -228,7 +228,7 @@
         </div>
         <div class="gps-row">
           <span class="gps-dot" id="gpsDot"></span>
-          <span id="gpsDistance">0.00 km</span>
+          <span id="gpsDistance">0 m</span>
           <span class="gps-sep">·</span>
           <span id="gpsStatusText" class="gps-status">GPS chưa bật</span>
         </div>
@@ -660,7 +660,7 @@ function resetGps(){
 }
 function renderGps(){
   const dot = $("gpsDot");
-  $("gpsDistance").textContent = (distanceMeters / 1000).toFixed(2) + " km";
+  $("gpsDistance").textContent = Math.round(distanceMeters) + " m";
   dot.className = "gps-dot";
   const statusText = {
     idle: "GPS chưa bật",
