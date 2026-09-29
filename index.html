@@ -428,9 +428,10 @@ const MODES = [
         {label:"Quá 30s chưa qua vạch xuất phát", file:"qua-30s-chua-khoi-hanh-xe-qua-vi-tri-xuat-phat.wav", critical:true},
       ]},
       { id:2, name:"Tăng số, tăng tốc độ", short:"Tăng số", announce:"tang-so-tang-toc-do.wav", errors:[
+        {label:"Không đạt tốc độ", file:"khong-dat-toc-do-quy-dinh.wav"},
         {label:"15m không tăng từ số 1 lên số 3", file:"khong-tang-dung-so-quy-dinh.wav", manualOnly:true},
         {label:"Dùng tay số không phù hợp", file:"su-dung-so-khong-phu-hop.wav", points:2, manualOnly:true},
-        {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav", manualOnly:true},
+        {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav"},
         {label:"Không vào đúng số khi tăng/giảm số", file:"khong-can-duoc-so.wav", manualOnly:true},
         {label:"Vi phạm quy tắc giao thông đường bộ", file:"vi-pham-quy-tac-giao-thong-duong-bo.wav", points:10},
         {label:"Choạng lái quá làn khi tăng/giảm số", file:"xe-bi-choang-lai.wav", critical:true, manualOnly:true},
@@ -438,8 +439,9 @@ const MODES = [
         {label:"Xử lý không hợp lý gây tai nạn", file:"xu-ly-tinh-huong-khong-hop-ly-gay-tai-nan.wav", critical:true},
       ]},
       { id:3, name:"Giảm số, giảm tốc độ", short:"Giảm số", announce:"giam-so-giam-toc-do.wav", errors:[
+        {label:"Không đạt tốc độ", file:"khong-dat-toc-do-quy-dinh.wav"},
         {label:"Dùng tay số không phù hợp", file:"su-dung-tay-so-khong-phu-hop-voi-toc-do.wav", points:2, manualOnly:true},
-        {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav", manualOnly:true},
+        {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav"},
         {label:"Không vào đúng số khi tăng/giảm số", file:"khong-can-duoc-so.wav", manualOnly:true},
         {label:"Choạng lái quá làn khi tăng/giảm số", file:"xe-bi-choang-lai.wav", critical:true, manualOnly:true},
       ]},
@@ -471,7 +473,7 @@ const GENERIC_GROUPS = [
     {label:"Xe bị rung giật", file:"xe-bi-rung-giat.wav", points:5},
     {label:"Xe bị choạng lái", file:"xe-bi-choang-lai.wav", points:5},
     {label:"Đi sai đường", file:"di-sai-duong.wav", critical:true},
-    {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav", points:5, manualOnly:true},
+    {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav", points:5},
     {label:"Không về được số 0 / P", file:"khong-ve-duoc-so-khong.wav", points:5},
   ]},
 ];
