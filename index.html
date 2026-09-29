@@ -604,18 +604,36 @@ function haversineMeters(lat1, lon1, lat2, lon2){
 }
 
 function onGpsFix(pos){
-  const { latitude, longitude, accuracy } = pos.coords;
+  const { latitude, longitude, accuracy, speed } = pos.coords;
   gpsStatus = "active";
   // bỏ qua điểm định vị quá nhiễu (độ chính xác kém)
   if(accuracy != null && accuracy > 40){ renderGps(); return; }
-  if(lastGpsFix){
+
+  if(!lastGpsFix){
+    lastGpsFix = { lat: latitude, lon: longitude, t: pos.timestamp, accuracy };
+    renderGps();
+    return;
+  }
+
+  // Nếu thiết bị tự báo tốc độ tức thời (GPS đo qua Doppler, ít nhiễu hơn nhiều so với
+  // so lệch toạ độ) và cho thấy gần như đứng yên, tin theo đó luôn — bỏ qua fix này.
+  const reportedStill = (typeof speed === "number" && speed >= 0 && speed < 0.6);
+  if(!reportedStill){
     const d = haversineMeters(lastGpsFix.lat, lastGpsFix.lon, latitude, longitude);
     const dtSec = (pos.timestamp - lastGpsFix.t) / 1000;
     const speedKmh = dtSec > 0 ? (d / dtSec) * 3.6 : 0;
-    // bỏ qua rung lắc GPS khi đứng yên (<2m) và các cú nhảy phi thực tế (>150km/h)
-    if(d >= 2 && speedKmh < 150) distanceMeters += d;
+    // Ngưỡng nhiễu = tổng độ chính xác của mốc neo hiện tại + lần đo này (tối thiểu
+    // 10m) — 2 toạ độ còn lệch trong khoảng đó thì chưa chắc đã di chuyển thật.
+    const noiseFloor = Math.max((accuracy || 0) + (lastGpsFix.accuracy || 0), 10);
+    if(d >= noiseFloor && speedKmh < 150){
+      // Xác nhận đã di chuyển thật: cộng dồn quãng đường rồi dời mốc neo tới đây.
+      // Nếu CHƯA vượt ngưỡng thì cố tình KHÔNG dời mốc neo, để các bước di chuyển
+      // chậm/nhỏ kế tiếp tiếp tục cộng dồn so với cùng một điểm neo cho tới khi đủ
+      // tin cậy — vừa lọc được nhiễu lúc đứng yên, vừa không bỏ sót lúc đi chậm.
+      distanceMeters += d;
+      lastGpsFix = { lat: latitude, lon: longitude, t: pos.timestamp, accuracy };
+    }
   }
-  lastGpsFix = { lat: latitude, lon: longitude, t: pos.timestamp };
   renderGps();
 }
 function onGpsError(err){
