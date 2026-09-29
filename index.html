@@ -117,6 +117,8 @@
   .error-header{margin-top:18px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px}
   .error-header h3{font-size:15px;font-weight:800;margin:0}
   .error-header .hint{text-align:center;font-size:11.5px;font-weight:600;color:var(--muted)}
+  .header-btns{display:flex;gap:6px}
+  .count-badge{position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--danger);color:#fff;font-size:9.5px;font-weight:900;display:flex;align-items:center;justify-content:center}
   .error-grid{margin-top:8px;display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
   .error-grid.three{grid-template-columns:repeat(3,1fr)}
   .err-btn{position:relative;border:1px solid var(--border);background:var(--card);border-radius:10px;padding:6px 6px;min-height:40px;font-family:inherit;font-weight:700;font-size:11.5px;line-height:1.25;text-align:center;cursor:pointer;color:var(--fg);display:flex;align-items:center;justify-content:center}
@@ -222,10 +224,17 @@
     <div class="error-header">
       <h3>Lỗi bài thi</h3>
       <span class="hint" id="errorHint">Phát âm thanh tự do</span>
-      <button class="btn btn-soft" style="padding:8px 11px;border-radius:11px;font-size:11.5px" id="tableBtn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 3h18v18H3zM3 9h18M3 15h18"/></svg>
-        Bảng điểm
-      </button>
+      <div class="header-btns">
+        <button class="btn btn-soft" style="padding:8px 10px;border-radius:11px;font-size:11.5px;position:relative" id="historyBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+          Lịch sử
+          <span class="count-badge" id="historyCount" style="display:none">0</span>
+        </button>
+        <button class="btn btn-soft" style="padding:8px 10px;border-radius:11px;font-size:11.5px" id="tableBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 3h18v18H3zM3 9h18M3 15h18"/></svg>
+          Bảng điểm
+        </button>
+      </div>
     </div>
     <div class="error-grid" id="errorGrid"></div>
 
@@ -480,6 +489,7 @@ let autoTimers = [];
 let playingKey = null;
 let audioEl = new Audio();
 let deltaTimer = null;
+let history = []; // { t: elapsedMs, bai, label, points, critical }
 
 const $ = (id) => document.getElementById(id);
 
@@ -523,12 +533,24 @@ function flashDelta(text){
   deltaTimer = setTimeout(()=>{ $("scoreDelta").textContent=""; }, 1400);
 }
 
+function logHistory(baiLabel, label, points, critical){
+  history.push({ t: elapsedMs, bai: baiLabel, label, points, critical: !!critical });
+  renderHistoryBadge();
+}
+function renderHistoryBadge(){
+  const badge = $("historyCount");
+  if(history.length > 0){ badge.textContent = history.length; badge.style.display = "flex"; }
+  else badge.style.display = "none";
+}
+function resetHistory(){ history = []; renderHistoryBadge(); }
+
 function startAutoTimerXuatPhat(){
   clearAutoTimers();
   autoTimers.push(setTimeout(()=>{
     playSound("warn-20", WARN20_SOUND);
     score = Math.max(0, score - 5);
     flashDelta("−5");
+    logHistory(currentBai().short, "Quá 20 giây chưa khởi hành (tự động)", 5, false);
     render();
   }, 20000));
   autoTimers.push(setTimeout(()=>{
@@ -538,6 +560,7 @@ function startAutoTimerXuatPhat(){
     isLive = false;
     clearAutoTimers();
     flashDelta("TRƯỢT");
+    logHistory(currentBai().short, "Quá 30 giây chưa khởi hành — TRƯỢT tự động", null, true);
     render();
   }, 30000));
 }
@@ -551,6 +574,7 @@ function startExam(){
   isTimeoutFail = false;
   elapsedMs = 0;
   $("scoreDelta").textContent = "";
+  resetHistory();
   startedAt = Date.now();
   isLive = true;
   hasStarted = true;
@@ -613,9 +637,11 @@ function triggerError(err, key){
     clearAutoTimers();
     clearInterval(elapsedTimer);
     flashDelta("LOẠI");
+    logHistory(currentBai().short, err.label, null, true);
   } else {
     const pts = err.points ?? 5;
     if(pts > 0){ score = Math.max(0, score - pts); flashDelta(`−${pts}`); }
+    logHistory(currentBai().short, err.label, pts, false);
   }
   render();
 }
@@ -640,6 +666,7 @@ function doSwitchMode(newKey){
   clearInterval(elapsedTimer);
   isLive = false; hasStarted = false; isLoai = false; isTimeoutFail = false;
   score = 100; elapsedMs = 0; $("scoreDelta").textContent = "";
+  resetHistory();
   modeKey = newKey;
   render();
 }
@@ -804,6 +831,40 @@ function openScoreSheet(){
   $("sheetOverlay").classList.add("open");
   $("scoreSheet").classList.add("open");
 }
+
+function openHistorySheet(){
+  $("sheetTitle").textContent = `Lịch sử trừ điểm — ${currentMode().label}`;
+  const body = $("sheetBody");
+  body.innerHTML = "";
+
+  if(history.length === 0){
+    body.innerHTML = '<div class="table-card"><div class="table-row"><span class="lbl">Chưa có lỗi nào được ghi nhận trong lượt thi hiện tại.</span></div></div>';
+  } else {
+    const wrap = document.createElement("div"); wrap.className = "table-group";
+    const card = document.createElement("div"); card.className = "table-card";
+    // mới nhất lên trên, để dễ trace lại thao tác vừa rồi
+    [...history].reverse().forEach(h=>{
+      const row = document.createElement("div"); row.className = "table-row";
+      row.innerHTML = `<span class="lbl">${fmtTime(h.t)} · <b>${h.bai}</b> — ${h.label}</span><span class="pt${h.critical?" critical":""}">${h.critical ? "LOẠI" : "−"+h.points+" điểm"}</span>`;
+      card.appendChild(row);
+    });
+    wrap.appendChild(card);
+    body.appendChild(wrap);
+
+    const totalPts = history.reduce((sum,h)=> sum + (h.critical ? 0 : h.points), 0);
+    const hasCritical = history.some(h=>h.critical);
+    const sum = document.createElement("p"); sum.className = "sheet-sub";
+    sum.style.marginTop = "12px";
+    sum.textContent = hasCritical
+      ? `Tổng ${history.length} lỗi ghi nhận · có lỗi liệt (LOẠI) trong lượt thi này.`
+      : `Tổng ${history.length} lỗi ghi nhận · −${totalPts} điểm.`;
+    body.appendChild(sum);
+  }
+
+  $("sheetOverlay").classList.add("open");
+  $("scoreSheet").classList.add("open");
+}
+
 function closeScoreSheet(){
   $("sheetOverlay").classList.remove("open");
   $("scoreSheet").classList.remove("open");
@@ -811,6 +872,7 @@ function closeScoreSheet(){
 
 // ---------------- Wire up static controls ----------------
 $("tableBtn").onclick = openScoreSheet;
+$("historyBtn").onclick = openHistorySheet;
 $("sheetClose").onclick = closeScoreSheet;
 $("sheetOverlay").onclick = closeScoreSheet;
 
@@ -818,7 +880,12 @@ $("btnPass").onclick = () => playSound("quick-dau", QUICK_SOUND[modeKey].pass);
 $("btnFail").onclick = () => playSound("quick-truot", QUICK_SOUND[modeKey].fail);
 $("btnStrip").onclick = () => {
   playSound("quick-tuoc", STRIP_SOUND);
-  if(isLive){ isLoai = true; isLive = false; clearAutoTimers(); clearInterval(elapsedTimer); flashDelta("LOẠI"); render(); }
+  if(isLive){
+    isLoai = true; isLive = false; clearAutoTimers(); clearInterval(elapsedTimer);
+    flashDelta("LOẠI");
+    logHistory(currentBai().short, "Tước quyền thi (thao tác thủ công)", null, true);
+    render();
+  }
 };
 
 $("fxTing").onclick = () => playSound("fx-ting", "ting-ton.wav");
