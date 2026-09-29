@@ -538,6 +538,8 @@ let lastGpsFix = null; // { lat, lon, t }
 let distanceMeters = 0;
 let gpsStatus = "idle"; // idle | active | denied | unavailable | error | off
 let gpsEnabled = true;
+let currentSpeedKmh = 0;
+let speedCheck = null; // { kind:"increase"|"decrease", startSpeedKmh, startDistanceMeters, bai }
 
 const $ = (id) => document.getElementById(id);
 
@@ -621,7 +623,7 @@ function haversineMeters(lat1, lon1, lat2, lon2){
 }
 
 function onGpsFix(pos){
-  const { latitude, longitude, accuracy } = pos.coords;
+  const { latitude, longitude, accuracy, speed } = pos.coords;
   gpsStatus = "active";
   // Chỉ loại bỏ các điểm định vị quá tệ (khả năng đến từ định vị theo Wi-Fi/IP chứ
   // không phải GPS thật — sai số có thể tới hàng trăm mét/km). Trước đây chặn ở 40m
@@ -645,7 +647,8 @@ function onGpsFix(pos){
   const speedKmh = dtSec > 0 ? (d / dtSec) * 3.6 : 0;
   // Ngưỡng nhiễu = độ chính xác lớn hơn trong 2 lần đo, cộng thêm biên an toàn 10m.
   const noiseFloor = Math.max(accuracy || 0, lastGpsFix.accuracy || 0) + 10;
-  if(d >= noiseFloor && speedKmh < 200){
+  const confirmed = d >= noiseFloor && speedKmh < 200;
+  if(confirmed){
     // Xác nhận đã di chuyển thật: cộng dồn quãng đường rồi dời mốc neo tới đây.
     // Nếu CHƯA vượt ngưỡng thì cố tình KHÔNG dời mốc neo, để các bước di chuyển
     // chậm/nhỏ kế tiếp tiếp tục cộng dồn so với cùng một điểm neo cho tới khi đủ
@@ -653,6 +656,15 @@ function onGpsFix(pos){
     distanceMeters += d;
     lastGpsFix = { lat: latitude, lon: longitude, t: pos.timestamp, accuracy };
   }
+  // Tốc độ hiện tại dùng cho kiểm tra tăng/giảm số: ưu tiên tốc độ tức thời do GPS tự
+  // báo (đo qua Doppler — đáng tin cậy ở tốc độ lái xe thật, không phụ thuộc khoảng
+  // cách giữa 2 lần đo). Nếu thiết bị không cung cấp, chỉ suy ra tốc độ từ khoảng
+  // cách/thời gian khi đoạn di chuyển đó đã được xác nhận là thật (confirmed) — dùng
+  // luôn d/dtSec thô của những lần đo chưa xác nhận rất dễ bị nhiễu do khoảng thời
+  // gian giữa 2 lần đo quá ngắn, gây tốc độ ảo tăng/giảm vọt dù xe đi đều.
+  if(typeof speed === "number" && speed >= 0) currentSpeedKmh = speed * 3.6;
+  else if(confirmed) currentSpeedKmh = speedKmh;
+  evaluateSpeedCheck();
   renderGps();
 }
 function onGpsError(err){
@@ -719,6 +731,39 @@ function renderGps(){
   $("gpsSwitch").setAttribute("aria-checked", gpsEnabled ? "true" : "false");
 }
 
+// ---------------- Kiểm tra tăng/giảm tốc độ (Đường trường) bằng GPS thật ----------------
+// Khi chọn bài "Tăng số"/"Giảm số" lúc đang thi thật, ghi nhận tốc độ + quãng đường
+// GPS lúc đó làm mốc. Hễ tốc độ thay đổi đủ 5km/h đúng hướng là báo "Tun" ngay, không
+// cần chờ đủ 100m; nếu đi hết 100m mà vẫn chưa đạt thì tự động trừ lỗi "Không đạt tốc độ".
+function maybeStartSpeedCheck(bai){
+  speedCheck = null;
+  if(modeKey !== "duong-truong" || !isLive) return;
+  if(bai.id === 2) speedCheck = { kind:"increase", startSpeedKmh: currentSpeedKmh, startDistanceMeters: distanceMeters, bai };
+  else if(bai.id === 3) speedCheck = { kind:"decrease", startSpeedKmh: currentSpeedKmh, startDistanceMeters: distanceMeters, bai };
+}
+function evaluateSpeedCheck(){
+  if(!speedCheck || !isLive) return;
+  // Đã chuyển sang bài khác thì huỷ theo dõi.
+  if(currentBai() !== speedCheck.bai){ speedCheck = null; return; }
+
+  const deltaKmh = speedCheck.kind === "increase"
+    ? (currentSpeedKmh - speedCheck.startSpeedKmh)
+    : (speedCheck.startSpeedKmh - currentSpeedKmh);
+  if(deltaKmh >= 5){
+    playSound("fx-tun-auto", "tun.wav");
+    speedCheck = null;
+    return;
+  }
+
+  const distSince = distanceMeters - speedCheck.startDistanceMeters;
+  if(distSince >= 100){
+    const bai = speedCheck.bai;
+    const err = bai.errors.find(e => e.label === "Không đạt tốc độ");
+    if(err) triggerError(err, `err-${modeKey}-${bai.id}-${err.label}`);
+    speedCheck = null;
+  }
+}
+
 function startAutoTimerXuatPhat(){
   clearAutoTimers();
   autoTimers.push(setTimeout(()=>{
@@ -751,6 +796,7 @@ function startExam(){
   $("scoreDelta").textContent = "";
   resetHistory();
   resetGps();
+  speedCheck = null;
   startGpsTracking();
   startedAt = Date.now();
   isLive = true;
@@ -801,6 +847,9 @@ function selectBai(idx){
     const bai = m.bai[idx];
     playSound(`announce-${modeKey}-${bai.id}`, bai.announce);
     if(modeKey === "sa-hinh" && bai.id === 1) startAutoTimerXuatPhat(); else clearAutoTimers();
+    maybeStartSpeedCheck(bai);
+  } else {
+    speedCheck = null;
   }
   render();
 }
@@ -838,6 +887,7 @@ function finalizeExamState(){
   score = 100; elapsedMs = 0; $("scoreDelta").textContent = "";
   resetHistory();
   resetGps();
+  speedCheck = null;
 }
 function askConfirm(text, onConfirm){
   pendingConfirmAction = onConfirm;
