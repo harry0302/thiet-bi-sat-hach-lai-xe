@@ -107,7 +107,12 @@
   .gps-dot.off{background:var(--danger)}
   @keyframes gpsPulse{0%,100%{box-shadow:0 0 0 0 rgba(5,150,105,.4)}50%{box-shadow:0 0 0 5px rgba(5,150,105,0)}}
   .gps-sep{color:var(--border)}
-  .gps-status{color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gps-status{flex:1;min-width:0;color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .switch{position:relative;flex:none;width:34px;height:19px;border:none;background:none;padding:0;cursor:pointer}
+  .switch .track{position:absolute;inset:0;background:var(--border);border-radius:999px;transition:background-color .18s}
+  .switch .thumb{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .18s}
+  .switch.on .track{background:var(--ok)}
+  .switch.on .thumb{transform:translateX(15px)}
   .setup-view{padding:4px 16px 28px}
   .setup-group{margin-top:20px}
   .setup-group-label{font-size:13px;font-weight:900;margin-bottom:8px;color:var(--fg)}
@@ -248,6 +253,9 @@
           <span id="gpsDistance">0 m</span>
           <span class="gps-sep">·</span>
           <span id="gpsStatusText" class="gps-status">GPS chưa bật</span>
+          <button class="switch" id="gpsSwitch" role="switch" aria-checked="true" aria-label="Bật/tắt đo quãng đường GPS">
+            <span class="track"></span><span class="thumb"></span>
+          </button>
         </div>
       </div>
     </div>
@@ -289,7 +297,7 @@
         <h3>Số sàn và số tự động</h3>
         <p>Chọn <strong>Số sàn</strong> hoặc <strong>Số tự động</strong> ngay ở màn hình bắt đầu, trước khi vào bài thi. Các lỗi thao tác côn — tay số (ví dụ: dùng tay số không phù hợp, vòng tua động cơ quá mức, không vào đúng số, choạng lái khi sang số, lỗi đổi số...) chỉ áp dụng cho xe số sàn và sẽ tự ẩn khi chọn Số tự động, vì xe số tự động không có các thao tác này. Muốn đổi lại loại bài thi hoặc hộp số, bấm mũi tên quay lại ở góc trên bên trái.</p>
         <h3>Đo quãng đường bằng GPS</h3>
-        <p>Từ lúc bấm <strong>Thi thật</strong>, trang sẽ xin quyền truy cập vị trí và dùng GPS của thiết bị để ước tính quãng đường đã di chuyển, hiển thị ngay dưới điểm số. Quãng đường tạm dừng đếm khi bạn bấm <strong>Kết thúc</strong> và tiếp tục khi <strong>Tiếp tục</strong>/<strong>Thi lại</strong>. Đây chỉ là số liệu tham khảo (độ chính xác phụ thuộc tín hiệu GPS của thiết bị), không dùng để chấm điểm.</p>
+        <p>Bấm nút gạt cạnh dòng quãng đường (ngay dưới điểm số) để bật/tắt đo GPS bất cứ lúc nào. Khi bật và bấm <strong>Thi thật</strong>, trang sẽ xin quyền truy cập vị trí và dùng GPS của thiết bị để ước tính quãng đường đã di chuyển. Quãng đường tạm dừng đếm khi bạn bấm <strong>Kết thúc</strong> và tiếp tục khi <strong>Tiếp tục</strong>/<strong>Thi lại</strong>; tắt nút gạt sẽ dừng theo dõi ngay lập tức. Đây chỉ là số liệu tham khảo (độ chính xác phụ thuộc tín hiệu GPS của thiết bị), không dùng để chấm điểm.</p>
         <h3>Cách dùng trang mô phỏng</h3>
         <ol>
           <li>Ở màn hình bắt đầu, chọn loại bài thi (<em>Sa hình</em> hoặc <em>Đường trường</em>) và loại hộp số, rồi bấm <strong>Bắt đầu</strong>.</li>
@@ -520,7 +528,8 @@ let history = []; // { t: elapsedMs, bai, label, points, critical }
 let gpsWatchId = null;
 let lastGpsFix = null; // { lat, lon, t }
 let distanceMeters = 0;
-let gpsStatus = "idle"; // idle | active | denied | unavailable | error
+let gpsStatus = "idle"; // idle | active | denied | unavailable | error | off
+let gpsEnabled = true;
 
 const $ = (id) => document.getElementById(id);
 
@@ -641,6 +650,7 @@ function onGpsError(err){
   renderGps();
 }
 function startGpsTracking(){
+  if(!gpsEnabled){ gpsStatus = "off"; renderGps(); return; }
   if(gpsWatchId !== null) return;
   if(!("geolocation" in navigator)){ gpsStatus = "unavailable"; renderGps(); return; }
   gpsStatus = "active";
@@ -652,30 +662,46 @@ function startGpsTracking(){
 function stopGpsTracking(){
   if(gpsWatchId !== null){ navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
   lastGpsFix = null; // tránh cộng nhầm quãng đường trong lúc tạm dừng
-  if(gpsStatus === "active") gpsStatus = "idle";
+  if(!gpsEnabled) gpsStatus = "off";
+  else if(gpsStatus === "active") gpsStatus = "idle";
   renderGps();
 }
 function resetGps(){
   stopGpsTracking();
   distanceMeters = 0;
-  gpsStatus = "idle";
+  gpsStatus = gpsEnabled ? "idle" : "off";
   renderGps();
+}
+function setGpsEnabled(v){
+  gpsEnabled = v;
+  try{ localStorage.setItem("gpsEnabled", v ? "1" : "0"); }catch(e){}
+  if(!v){
+    stopGpsTracking();
+    gpsStatus = "off";
+    renderGps();
+  } else {
+    gpsStatus = "idle";
+    if(isLive) startGpsTracking(); else renderGps();
+  }
 }
 function renderGps(){
   const dot = $("gpsDot");
   $("gpsDistance").textContent = Math.round(distanceMeters) + " m";
   dot.className = "gps-dot";
   const statusText = {
-    idle: "GPS chưa bật",
+    idle: "Sẵn sàng đo GPS",
     active: "Đang định vị GPS",
     denied: "Bạn đã từ chối quyền vị trí",
     unavailable: "Thiết bị không hỗ trợ GPS",
     error: "Mất tín hiệu GPS, đang thử lại…",
+    off: "Đã tắt đo GPS",
   }[gpsStatus];
   $("gpsStatusText").textContent = statusText;
   if(gpsStatus === "active") dot.classList.add("live");
-  else if(gpsStatus === "denied" || gpsStatus === "unavailable") dot.classList.add("off");
+  else if(gpsStatus === "denied" || gpsStatus === "unavailable" || gpsStatus === "off") dot.classList.add("off");
   else if(gpsStatus === "error") dot.classList.add("warn");
+  $("gpsSwitch").classList.toggle("on", gpsEnabled);
+  $("gpsSwitch").setAttribute("aria-checked", gpsEnabled ? "true" : "false");
 }
 
 function startAutoTimerXuatPhat(){
@@ -1105,7 +1131,12 @@ try{
   if(savedTransmission === "manual" || savedTransmission === "auto") transmission = savedTransmission;
   const savedMode = localStorage.getItem("modeKey");
   if(savedMode === "sa-hinh" || savedMode === "duong-truong") modeKey = savedMode;
+  const savedGps = localStorage.getItem("gpsEnabled");
+  if(savedGps === "0") gpsEnabled = false;
 }catch(e){}
+$("gpsSwitch").onclick = () => setGpsEnabled(!gpsEnabled);
+gpsStatus = gpsEnabled ? "idle" : "off";
+renderGps();
 
 showSetupView();
 preloadAllAudio();
