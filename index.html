@@ -103,6 +103,11 @@
   .mode-toggle{margin-top:10px;padding:4px;display:grid;grid-template-columns:1fr 1fr;gap:4px}
   .mode-toggle button{border:none;background:transparent;border-radius:13px;padding:9px 4px;font-family:inherit;font-weight:800;font-size:13px;color:var(--muted);cursor:pointer}
   .mode-toggle button.active{background:var(--brand-grad);color:#fff;box-shadow:var(--shadow-pop)}
+  .gearbox-row{margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px}
+  .gearbox-label{font-size:11.5px;font-weight:800;color:var(--muted)}
+  .gearbox-toggle{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:3px}
+  .gearbox-toggle button{border:none;background:transparent;border-radius:8px;padding:5px 10px;font-family:inherit;font-weight:800;font-size:11.5px;color:var(--muted);cursor:pointer}
+  .gearbox-toggle button.active{background:var(--accent);color:var(--accent-fg)}
   h2.section{font-size:16px;font-weight:900;margin:16px 0 8px}
   .choose-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
   .choose-grid.two{grid-template-columns:repeat(2,1fr)}
@@ -218,6 +223,11 @@
 
     <div class="card mode-toggle" id="modeToggle"></div>
 
+    <div class="gearbox-row">
+      <span class="gearbox-label">Hộp số</span>
+      <div class="gearbox-toggle" id="gearboxToggle"></div>
+    </div>
+
     <h2 class="section">Chọn bài thi</h2>
     <div class="choose-grid" id="chooseGrid"></div>
 
@@ -268,6 +278,8 @@
         <p>Gồm 11 bài thi liên hoàn trong sân sa hình (xuất phát, dừng nhường người đi bộ, ngang dốc, vệt bánh xe, ngã tư, quanh co, ghép dọc, đường sắt, đổi số, ghép ngang, kết thúc) cộng thêm bài tình huống khẩn cấp. Riêng bài xuất phát có đồng hồ đếm ngược: quá 20 giây chưa khởi hành bị trừ 5 điểm, quá 30 giây bị đánh trượt ngay.</p>
         <h3>Phần thi Đường trường</h3>
         <p>Diễn ra trên đường thực tế, gồm 4 giai đoạn: xuất phát, tăng số &amp; tăng tốc độ, giảm số &amp; giảm tốc độ, dừng xe kết thúc. Trọng tâm chấm điểm là kỹ năng côn — số — ga — phanh khi tăng/giảm tốc, giữ đúng làn đường và tuân thủ hiệu lệnh của sát hạch viên. Các lỗi nghiêm trọng như choạng lái quá làn, không theo hiệu lệnh, hoặc xử lý tình huống gây tai nạn đều là lỗi liệt.</p>
+        <h3>Số sàn và số tự động</h3>
+        <p>Chọn <strong>Số sàn</strong> hoặc <strong>Số tự động</strong> ngay dưới thanh chuyển chế độ. Các lỗi thao tác côn — tay số (ví dụ: dùng tay số không phù hợp, vòng tua động cơ quá mức, không vào đúng số, choạng lái khi sang số, lỗi đổi số...) chỉ áp dụng cho xe số sàn và sẽ tự ẩn khi chọn Số tự động, vì xe số tự động không có các thao tác này.</p>
         <h3>Cách dùng trang mô phỏng</h3>
         <ol>
           <li>Chọn chế độ <em>Sa hình</em> hoặc <em>Đường trường</em>.</li>
@@ -390,7 +402,7 @@ const MODES = [
         {label:"Không đạt tốc độ", file:"khong-dat-toc-do-quy-dinh.wav"},
         {label:"Quá 2 phút thực hiện bài", file:"qua-thoi-gian-mot-bai.wav"},
         {label:"Lỗi thao tác tình huống", file:"khong-tuan-thu-dung-tin-hieu-khan-cap.wav", points:10},
-        {label:"Lỗi đổi số", file:"khong-thay-doi-so-dung-quy-dinh.wav"},
+        {label:"Lỗi đổi số", file:"khong-thay-doi-so-dung-quy-dinh.wav", manualOnly:true},
       ]},
       { id:10, name:"Ghép xe ngang vào nơi đỗ", short:"Ghép ngang", announce:"ghep-xe-ngang-vao-noi-do.wav", errors:[
         {label:"Chẹt vạch giới hạn", file:"banh-xe-de-vach.wav"},
@@ -416,23 +428,23 @@ const MODES = [
         {label:"Quá 30s chưa qua vạch xuất phát", file:"qua-30s-chua-khoi-hanh-xe-qua-vi-tri-xuat-phat.wav", critical:true},
       ]},
       { id:2, name:"Tăng số, tăng tốc độ", short:"Tăng số", announce:"tang-so-tang-toc-do.wav", errors:[
-        {label:"15m không tăng từ số 1 lên số 3", file:"khong-tang-dung-so-quy-dinh.wav"},
-        {label:"Dùng tay số không phù hợp", file:"su-dung-so-khong-phu-hop.wav", points:2},
-        {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav"},
-        {label:"Không vào đúng số khi tăng/giảm số", file:"khong-can-duoc-so.wav"},
+        {label:"15m không tăng từ số 1 lên số 3", file:"khong-tang-dung-so-quy-dinh.wav", manualOnly:true},
+        {label:"Dùng tay số không phù hợp", file:"su-dung-so-khong-phu-hop.wav", points:2, manualOnly:true},
+        {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav", manualOnly:true},
+        {label:"Không vào đúng số khi tăng/giảm số", file:"khong-can-duoc-so.wav", manualOnly:true},
         {label:"Vi phạm quy tắc giao thông đường bộ", file:"vi-pham-quy-tac-giao-thong-duong-bo.wav", points:10},
-        {label:"Choạng lái quá làn khi tăng/giảm số", file:"xe-bi-choang-lai.wav", critical:true},
+        {label:"Choạng lái quá làn khi tăng/giảm số", file:"xe-bi-choang-lai.wav", critical:true, manualOnly:true},
         {label:"Không theo hiệu lệnh sát hạch viên", file:"khong-thuc-hien-theo-hieu-lenh-cua-sat-hoach-vien.wav", critical:true},
         {label:"Xử lý không hợp lý gây tai nạn", file:"xu-ly-tinh-huong-khong-hop-ly-gay-tai-nan.wav", critical:true},
       ]},
       { id:3, name:"Giảm số, giảm tốc độ", short:"Giảm số", announce:"giam-so-giam-toc-do.wav", errors:[
-        {label:"Dùng tay số không phù hợp", file:"su-dung-tay-so-khong-phu-hop-voi-toc-do.wav", points:2},
-        {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav"},
-        {label:"Không vào đúng số khi tăng/giảm số", file:"khong-can-duoc-so.wav"},
-        {label:"Choạng lái quá làn khi tăng/giảm số", file:"xe-bi-choang-lai.wav", critical:true},
+        {label:"Dùng tay số không phù hợp", file:"su-dung-tay-so-khong-phu-hop-voi-toc-do.wav", points:2, manualOnly:true},
+        {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav", manualOnly:true},
+        {label:"Không vào đúng số khi tăng/giảm số", file:"khong-can-duoc-so.wav", manualOnly:true},
+        {label:"Choạng lái quá làn khi tăng/giảm số", file:"xe-bi-choang-lai.wav", critical:true, manualOnly:true},
       ]},
       { id:4, name:"Dừng xe & kết thúc", short:"Dừng/Kết thúc", announce:"ket-thuc-duong-truong.wav", errors:[
-        {label:"Không giảm hết số khi dừng xe", file:"khong-giam-het-so.wav"},
+        {label:"Không giảm hết số khi dừng xe", file:"khong-giam-het-so.wav", manualOnly:true},
         {label:"Không bật xi nhan phải trước khi dừng", file:"khong-bat-xi-nhan-phai.wav"},
         {label:"Không kéo hết phanh tay khi dừng xe", file:"khong-keo-het-phanh.wav"},
       ]},
@@ -459,7 +471,7 @@ const GENERIC_GROUPS = [
     {label:"Xe bị rung giật", file:"xe-bi-rung-giat.wav", points:5},
     {label:"Xe bị choạng lái", file:"xe-bi-choang-lai.wav", points:5},
     {label:"Đi sai đường", file:"di-sai-duong.wav", critical:true},
-    {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav", points:5},
+    {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav", points:5, manualOnly:true},
     {label:"Không về được số 0 / P", file:"khong-ve-duoc-so-khong.wav", points:5},
   ]},
 ];
@@ -475,6 +487,7 @@ const WARN30_SOUND = "da-qua-30s.wav";
 
 // ---------------- State ----------------
 let modeKey = "sa-hinh";
+let transmission = "manual"; // "manual" (số sàn) | "auto" (số tự động)
 let selectedIndex = { "sa-hinh":0, "duong-truong":0 };
 let score = 100;
 let isLive = false;
@@ -495,6 +508,8 @@ const $ = (id) => document.getElementById(id);
 
 function currentMode(){ return MODES.find(m => m.key === modeKey); }
 function currentBai(){ const m = currentMode(); return m.bai[selectedIndex[modeKey]]; }
+// Lỗi thao tác số sàn (tay số, côn, vòng tua...) không áp dụng cho xe số tự động
+function visibleErrors(errors){ return transmission === "auto" ? errors.filter(e => !e.manualOnly) : errors; }
 
 function fmtTime(ms){
   const s = Math.floor(ms/1000);
@@ -690,6 +705,7 @@ function render(){
 
   renderActions();
   renderModeToggle();
+  renderGearboxToggle();
   renderChooseGrid();
   renderErrorGrid();
   renderBottomBar();
@@ -740,6 +756,24 @@ function renderModeToggle(){
   });
 }
 
+function setTransmission(t){
+  if(t === transmission) return;
+  transmission = t;
+  try{ localStorage.setItem("transmission", t); }catch(e){}
+  render();
+}
+function renderGearboxToggle(){
+  const box = $("gearboxToggle");
+  box.innerHTML = "";
+  [["manual","Số sàn"],["auto","Số tự động"]].forEach(([key,label])=>{
+    const b = document.createElement("button");
+    b.textContent = label;
+    if(key === transmission) b.classList.add("active");
+    b.onclick = () => setTransmission(key);
+    box.appendChild(b);
+  });
+}
+
 function renderChooseGrid(){
   const m = currentMode();
   const grid = $("chooseGrid");
@@ -758,15 +792,16 @@ function renderChooseGrid(){
 
 function renderErrorGrid(){
   const bai = currentBai();
+  const errors = visibleErrors(bai.errors);
   const grid = $("errorGrid");
-  grid.className = "error-grid" + (bai.errors.length > 6 ? " three" : "");
+  grid.className = "error-grid" + (errors.length > 6 ? " three" : "");
   grid.innerHTML = "";
   $("errorHint").textContent = isLive ? "Phát và trừ điểm" : "Phát âm thanh tự do";
-  if(bai.errors.length === 0){
+  if(errors.length === 0){
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);font-size:13px">Bài này không có âm thanh lỗi riêng.</div>';
     return;
   }
-  bai.errors.forEach(err=>{
+  errors.forEach(err=>{
     const key = `err-${modeKey}-${bai.id}-${err.label}`;
     const b = document.createElement("button");
     b.className = "err-btn" + (playingKey === key ? " active" : "");
@@ -796,10 +831,11 @@ function openScoreSheet(){
     title.textContent = bai.special === "emergency" ? bai.name : `Bài ${bai.id}. ${bai.name}`;
     wrap.appendChild(title);
     const card = document.createElement("div"); card.className = "table-card";
-    if(bai.errors.length === 0){
+    const baiErrors = visibleErrors(bai.errors);
+    if(baiErrors.length === 0){
       card.innerHTML = '<div class="table-row"><span class="lbl">Không có lỗi trừ điểm riêng.</span></div>';
     } else {
-      bai.errors.forEach(e=>{
+      baiErrors.forEach(e=>{
         const row = document.createElement("div"); row.className = "table-row";
         row.innerHTML = `<span class="lbl">${e.label}</span><span class="pt${e.critical?" critical":""}">${e.critical ? "LOẠI" : "−"+(e.points??5)+" điểm"}</span>`;
         card.appendChild(row);
@@ -811,7 +847,7 @@ function openScoreSheet(){
   const activeBai = currentBai();
   const activeLabels = new Set(activeBai.errors.map(e=>e.label));
   GENERIC_GROUPS.forEach(g=>{
-    const items = g.items.filter(e => !activeLabels.has(e.label));
+    const items = visibleErrors(g.items).filter(e => !activeLabels.has(e.label));
     if(items.length === 0) return;
     const wrap = document.createElement("div"); wrap.className = "table-group";
     const title = document.createElement("div"); title.className = "g-title";
@@ -921,6 +957,10 @@ $("themeBtn").onclick = () => {
   const isDark = cur ? cur === "dark" : prefersDark;
   applyTheme(isDark ? "light" : "dark");
 };
+try{
+  const savedTransmission = localStorage.getItem("transmission");
+  if(savedTransmission === "manual" || savedTransmission === "auto") transmission = savedTransmission;
+}catch(e){}
 
 render();
 </script>
