@@ -138,7 +138,6 @@
   .vandap-progress{font-size:11.5px;font-weight:700;color:var(--muted);margin:4px 0 8px}
   .vandap-card{padding:18px 16px;text-align:center}
   .vandap-q{font-size:15.5px;font-weight:800;line-height:1.45;color:var(--fg)}
-  .vandap-reveal{margin:14px auto 0;padding:8px 16px;border-radius:11px;font-size:12px}
   .vandap-a{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;line-height:1.5;color:var(--muted);text-align:left}
   .vandap-nav{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .vandap-nav .btn{padding:10px;border-radius:12px;font-size:12.5px}
@@ -321,8 +320,7 @@
       <div class="vandap-progress" id="vandapProgress">Câu 1/1</div>
       <div class="card vandap-card">
         <div class="vandap-q" id="vandapQuestion">…</div>
-        <button class="btn btn-ghost vandap-reveal" id="vandapRevealBtn" type="button">Xem đáp án</button>
-        <div class="vandap-a" id="vandapAnswer" style="display:none"></div>
+        <div class="vandap-a" id="vandapAnswer"></div>
       </div>
       <div class="vandap-nav">
         <button class="btn btn-ghost" id="vandapPrev" type="button">← Câu trước</button>
@@ -624,7 +622,6 @@ let vanDapOrder = [];
 let vanDapIndex = 0;
 let vanDapAnswered = 0;
 let vanDapCorrect = 0;
-let vanDapRevealed = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -874,7 +871,6 @@ function shuffleVanDap(){
   vanDapIndex = 0;
   vanDapAnswered = 0;
   vanDapCorrect = 0;
-  vanDapRevealed = false;
 }
 function currentVanDapQuestion(){ return VAN_DAP_QUESTIONS[vanDapOrder[vanDapIndex]]; }
 function renderVanDap(){
@@ -883,13 +879,10 @@ function renderVanDap(){
   $("vandapProgress").textContent = `Câu ${vanDapIndex + 1}/${VAN_DAP_QUESTIONS.length} · Đã hỏi ${vanDapAnswered} · Đúng ${vanDapCorrect}`;
   $("vandapQuestion").textContent = q.q;
   $("vandapAnswer").textContent = q.a;
-  $("vandapAnswer").style.display = vanDapRevealed ? "" : "none";
-  $("vandapRevealBtn").textContent = vanDapRevealed ? "Ẩn đáp án" : "Xem đáp án";
   $("vandapHint").textContent = isLive ? "Trả lời sai sẽ trừ điểm" : "Chế độ xem trước, không trừ điểm";
 }
 function vanDapGoto(delta){
   vanDapIndex = (vanDapIndex + delta + VAN_DAP_QUESTIONS.length) % VAN_DAP_QUESTIONS.length;
-  vanDapRevealed = false;
   renderVanDap();
 }
 function vanDapMark(correct){
@@ -987,6 +980,7 @@ function endExam(){
   clearInterval(elapsedTimer);
   stopGpsTracking();
   isLive = false;
+  shuffleVanDap(); // kết thúc lượt thi thì xoá luôn tiến trình vấn đáp, về trạng thái ban đầu
   render();
 }
 
@@ -1328,7 +1322,6 @@ $("setupStartBtn").onclick = () => {
 document.querySelectorAll(".exam-tab").forEach(b => { b.onclick = () => setExamTab(b.dataset.tab); });
 $("vandapPrev").onclick = () => vanDapGoto(-1);
 $("vandapNext").onclick = () => vanDapGoto(1);
-$("vandapRevealBtn").onclick = () => { vanDapRevealed = !vanDapRevealed; renderVanDap(); };
 $("vandapCorrect").onclick = () => vanDapMark(true);
 $("vandapWrong").onclick = () => vanDapMark(false);
 shuffleVanDap();
