@@ -109,6 +109,8 @@
   .gps-sep{color:var(--border)}
   .gps-status{flex:1;min-width:0;color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .speedcheck-row{margin-top:9px;padding-top:8px;border-top:1px solid var(--border)}
+  .speedcheck-toggle-line{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11.5px;font-weight:700;color:var(--fg)}
+  .speedcheck-progress{margin-top:8px}
   .speedcheck-label{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11.5px;font-weight:700;color:var(--fg);margin-bottom:5px}
   .speedcheck-label span:last-child{flex:none;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:800}
   .speedcheck-bar{height:6px;border-radius:999px;background:var(--secondary);overflow:hidden}
@@ -276,11 +278,19 @@
           </button>
         </div>
         <div class="speedcheck-row" id="speedCheckRow" style="display:none">
-          <div class="speedcheck-label">
-            <span id="speedCheckText">Đang chờ đổi tốc độ…</span>
-            <span id="speedCheckDist">0/100 m</span>
+          <div class="speedcheck-toggle-line">
+            <span>Tự động chấm tốc độ tăng/giảm số (GPS)</span>
+            <button class="switch" id="speedCheckSwitch" role="switch" aria-checked="true" aria-label="Bật/tắt tự động chấm tốc độ tăng/giảm số theo GPS">
+              <span class="track"></span><span class="thumb"></span>
+            </button>
           </div>
-          <div class="speedcheck-bar"><div class="speedcheck-bar-fill" id="speedCheckFill" style="width:0%"></div></div>
+          <div class="speedcheck-progress" id="speedCheckProgress" style="display:none">
+            <div class="speedcheck-label">
+              <span id="speedCheckText">Đang chờ đổi tốc độ…</span>
+              <span id="speedCheckDist">0/100 m</span>
+            </div>
+            <div class="speedcheck-bar"><div class="speedcheck-bar-fill" id="speedCheckFill" style="width:0%"></div></div>
+          </div>
         </div>
       </div>
     </div>
@@ -353,6 +363,8 @@
         <p>Chọn <strong>Số sàn</strong> hoặc <strong>Số tự động</strong> ngay ở màn hình bắt đầu, trước khi vào bài thi. Các lỗi thao tác côn — tay số (ví dụ: dùng tay số không phù hợp, vòng tua động cơ quá mức, không vào đúng số, choạng lái khi sang số, lỗi đổi số...) chỉ áp dụng cho xe số sàn và sẽ tự ẩn khi chọn Số tự động, vì xe số tự động không có các thao tác này. Muốn đổi lại loại bài thi hoặc hộp số, bấm mũi tên quay lại ở góc trên bên trái.</p>
         <h3>Đo quãng đường bằng GPS</h3>
         <p>Bấm nút gạt cạnh dòng quãng đường (ngay dưới điểm số) để bật/tắt đo GPS bất cứ lúc nào. Khi bật và bấm <strong>Thi thật</strong>, trang sẽ xin quyền truy cập vị trí và dùng GPS của thiết bị để ước tính quãng đường đã di chuyển. Quãng đường tạm dừng đếm khi bạn bấm <strong>Kết thúc</strong> và tiếp tục khi <strong>Tiếp tục</strong>/<strong>Thi lại</strong>; tắt nút gạt sẽ dừng theo dõi ngay lập tức. Đây chỉ là số liệu tham khảo (độ chính xác phụ thuộc tín hiệu GPS của thiết bị — số ±m hiển thị kèm chính là sai số GPS hiện tại; tín hiệu yếu trong nhà/đô thị có thể khiến quãng đường tăng chậm hơn thực tế), không dùng để chấm điểm.</p>
+        <h3>Tự động chấm tốc độ tăng/giảm số theo GPS</h3>
+        <p>Ở bài <strong>Tăng số</strong>/<strong>Giảm số</strong> (Đường trường), trang có thể tự theo dõi tốc độ GPS: nếu tăng/giảm đủ 5 km/h thì báo hiệu ứng "Tun", còn nếu đi hết 100m mà chưa đạt thì tự trừ lỗi "Không đạt tốc độ". Bấm nút gạt "Tự động chấm tốc độ tăng/giảm số (GPS)" để bật/tắt tính năng này bất cứ lúc nào — tắt đi nếu muốn tự đánh giá tốc độ thủ công bằng nút lỗi thay vì để GPS quyết định.</p>
         <h3>Cách dùng trang mô phỏng</h3>
         <ol>
           <li>Ở màn hình bắt đầu, chọn loại bài thi (<em>Sa hình</em> hoặc <em>Đường trường</em>) và loại hộp số, rồi bấm <strong>Bắt đầu</strong>.</li>
@@ -615,6 +627,7 @@ let lastGpsFix = null; // { lat, lon, t }
 let distanceMeters = 0;
 let gpsStatus = "idle"; // idle | active | denied | unavailable | error | off
 let gpsEnabled = true;
+let speedCheckEnabled = true; // bật/tắt tự động chấm tốc độ tăng/giảm số theo GPS
 let currentSpeedKmh = 0;
 let speedCheck = null; // { kind:"increase"|"decrease", startSpeedKmh, startDistanceMeters, bai }
 let examTab = "bai"; // "bai" | "vandap" — chỉ áp dụng cho đường trường
@@ -819,7 +832,7 @@ function renderGps(){
 // cần chờ đủ 100m; nếu đi hết 100m mà vẫn chưa đạt thì tự động trừ lỗi "Không đạt tốc độ".
 function maybeStartSpeedCheck(bai){
   speedCheck = null;
-  if(modeKey === "duong-truong" && isLive){
+  if(speedCheckEnabled && modeKey === "duong-truong" && isLive){
     if(bai.id === 2) speedCheck = { kind:"increase", startSpeedKmh: currentSpeedKmh, startDistanceMeters: distanceMeters, bai };
     else if(bai.id === 3) speedCheck = { kind:"decrease", startSpeedKmh: currentSpeedKmh, startDistanceMeters: distanceMeters, bai };
   }
@@ -849,10 +862,28 @@ function evaluateSpeedCheck(){
   }
   renderSpeedCheck();
 }
+function setSpeedCheckEnabled(v){
+  speedCheckEnabled = v;
+  try{ localStorage.setItem("speedCheckEnabled", v ? "1" : "0"); }catch(e){}
+  if(v){
+    if(isLive && modeKey === "duong-truong"){
+      const bai = currentBai();
+      if(bai.id === 2 || bai.id === 3) maybeStartSpeedCheck(bai);
+    }
+  } else {
+    speedCheck = null;
+  }
+  renderSpeedCheck();
+}
 function renderSpeedCheck(){
   const row = $("speedCheckRow");
-  if(!speedCheck){ row.style.display = "none"; return; }
-  row.style.display = "";
+  row.style.display = modeKey === "duong-truong" ? "" : "none";
+  $("speedCheckSwitch").classList.toggle("on", speedCheckEnabled);
+  $("speedCheckSwitch").setAttribute("aria-checked", speedCheckEnabled ? "true" : "false");
+
+  const progress = $("speedCheckProgress");
+  if(!speedCheck){ progress.style.display = "none"; return; }
+  progress.style.display = "";
   const distSince = Math.max(0, Math.min(100, distanceMeters - speedCheck.startDistanceMeters));
   $("speedCheckText").textContent = speedCheck.kind === "increase"
     ? "Đang chờ tăng tốc +5 km/h…"
@@ -1358,8 +1389,11 @@ try{
   if(savedMode === "sa-hinh" || savedMode === "duong-truong") modeKey = savedMode;
   const savedGps = localStorage.getItem("gpsEnabled");
   if(savedGps === "0") gpsEnabled = false;
+  const savedSpeedCheck = localStorage.getItem("speedCheckEnabled");
+  if(savedSpeedCheck === "0") speedCheckEnabled = false;
 }catch(e){}
 $("gpsSwitch").onclick = () => setGpsEnabled(!gpsEnabled);
+$("speedCheckSwitch").onclick = () => setSpeedCheckEnabled(!speedCheckEnabled);
 gpsStatus = gpsEnabled ? "idle" : "off";
 renderGps();
 
