@@ -130,6 +130,20 @@
   .setup-card.active .sc-title{color:var(--accent-fg)}
   .setup-start{width:100%;padding:15px;border-radius:16px;font-size:15px;margin-top:26px}
   h2.section{font-size:16px;font-weight:900;margin:16px 0 8px}
+  .exam-tabs{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:15px;padding:4px;box-shadow:var(--shadow-card)}
+  .exam-tab{border:none;background:transparent;border-radius:11px;padding:9px 4px;font-family:inherit;font-weight:800;font-size:13px;color:var(--muted);cursor:pointer}
+  .exam-tab.active{background:var(--brand-grad);color:#fff;box-shadow:var(--shadow-pop)}
+  .vandap-panel{margin-top:4px}
+  .vandap-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:16px}
+  .vandap-progress{font-size:11.5px;font-weight:700;color:var(--muted);margin:4px 0 8px}
+  .vandap-card{padding:18px 16px;text-align:center}
+  .vandap-q{font-size:15.5px;font-weight:800;line-height:1.45;color:var(--fg)}
+  .vandap-reveal{margin:14px auto 0;padding:8px 16px;border-radius:11px;font-size:12px}
+  .vandap-a{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;line-height:1.5;color:var(--muted);text-align:left}
+  .vandap-nav{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .vandap-nav .btn{padding:10px;border-radius:12px;font-size:12.5px}
+  .vandap-mark{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .result-btn2{height:48px;border-radius:14px;border:none;color:#fff;font-weight:800;font-size:12.5px;cursor:pointer}
   .choose-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
   .choose-grid.two{grid-template-columns:repeat(2,1fr)}
   .choose-btn{border:1px solid var(--border);background:var(--card);border-radius:14px;padding:7px 8px;display:flex;align-items:center;gap:6px;cursor:pointer;text-align:left;font-family:inherit;transition:transform .12s}
@@ -272,25 +286,53 @@
       </div>
     </div>
 
-    <h2 class="section">Chọn bài thi</h2>
-    <div class="choose-grid" id="chooseGrid"></div>
+    <div class="exam-tabs" id="examTabs" style="display:none">
+      <button class="exam-tab active" data-tab="bai" type="button">Bài thi</button>
+      <button class="exam-tab" data-tab="vandap" type="button">Vấn đáp</button>
+    </div>
 
-    <div class="error-header">
-      <h3>Lỗi bài thi</h3>
-      <span class="hint" id="errorHint">Phát âm thanh tự do</span>
-      <div class="header-btns">
-        <button class="btn btn-soft" style="padding:8px 10px;border-radius:11px;font-size:11.5px;position:relative" id="historyBtn">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
-          Lịch sử
-          <span class="count-badge" id="historyCount" style="display:none">0</span>
-        </button>
-        <button class="btn btn-soft" style="padding:8px 10px;border-radius:11px;font-size:11.5px" id="tableBtn">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 3h18v18H3zM3 9h18M3 15h18"/></svg>
-          Bảng điểm
-        </button>
+    <div id="baiTabPanel">
+      <h2 class="section">Chọn bài thi</h2>
+      <div class="choose-grid" id="chooseGrid"></div>
+
+      <div class="error-header">
+        <h3>Lỗi bài thi</h3>
+        <span class="hint" id="errorHint">Phát âm thanh tự do</span>
+        <div class="header-btns">
+          <button class="btn btn-soft" style="padding:8px 10px;border-radius:11px;font-size:11.5px;position:relative" id="historyBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+            Lịch sử
+            <span class="count-badge" id="historyCount" style="display:none">0</span>
+          </button>
+          <button class="btn btn-soft" style="padding:8px 10px;border-radius:11px;font-size:11.5px" id="tableBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 3h18v18H3zM3 9h18M3 15h18"/></svg>
+            Bảng điểm
+          </button>
+        </div>
+      </div>
+      <div class="error-grid" id="errorGrid"></div>
+    </div>
+
+    <div id="vandapTabPanel" class="vandap-panel" style="display:none">
+      <div class="vandap-top">
+        <h2 class="section" style="margin:0">Vấn đáp</h2>
+        <span class="hint" id="vandapHint">Trả lời sai sẽ trừ điểm</span>
+      </div>
+      <div class="vandap-progress" id="vandapProgress">Câu 1/1</div>
+      <div class="card vandap-card">
+        <div class="vandap-q" id="vandapQuestion">…</div>
+        <button class="btn btn-ghost vandap-reveal" id="vandapRevealBtn" type="button">Xem đáp án</button>
+        <div class="vandap-a" id="vandapAnswer" style="display:none"></div>
+      </div>
+      <div class="vandap-nav">
+        <button class="btn btn-ghost" id="vandapPrev" type="button">← Câu trước</button>
+        <button class="btn btn-ghost" id="vandapNext" type="button">Câu tiếp theo →</button>
+      </div>
+      <div class="vandap-mark">
+        <button class="result-btn2" style="background:var(--ok)" id="vandapCorrect" type="button">✓ Trả lời đúng</button>
+        <button class="result-btn2" style="background:var(--danger)" id="vandapWrong" type="button">✗ Trả lời sai (−5đ)</button>
       </div>
     </div>
-    <div class="error-grid" id="errorGrid"></div>
 
     <details class="about">
       <summary>📘 Tìm hiểu cách chấm điểm sát hạch lái xe</summary>
@@ -307,6 +349,8 @@
         <h3>Phần thi Đường trường</h3>
         <p>Diễn ra trên đường thực tế, gồm 4 giai đoạn: xuất phát, tăng số &amp; tăng tốc độ, giảm số &amp; giảm tốc độ, dừng xe kết thúc. Trọng tâm chấm điểm là kỹ năng côn — số — ga — phanh khi tăng/giảm tốc, giữ đúng làn đường và tuân thủ hiệu lệnh của sát hạch viên. Các lỗi nghiêm trọng như choạng lái quá làn, không theo hiệu lệnh, hoặc xử lý tình huống gây tai nạn đều là lỗi liệt.</p>
         <p>Riêng bài <strong>Khẩn cấp</strong> (nhãn KC) mô phỏng các tình huống bất ngờ thường gặp khi lái xe trên đường: nhường đường người đi bộ, chướng ngại vật phía trước, xe nổ lốp/mất lái... Đây là các nút bấm rời để giả lập từng tình huống bất kỳ lúc nào trong lượt thi, không theo thứ tự cố định như 4 giai đoạn còn lại.</p>
+        <h3>Tab Vấn đáp</h3>
+        <p>Ở chế độ Đường trường có thêm tab <strong>Vấn đáp</strong> cạnh tab Bài thi, mô phỏng các câu hỏi sát hạch viên có thể hỏi thêm trong lúc lái (biển báo, quy tắc giao thông, xử lý tình huống, kiến thức xe cơ bản...). Bấm <strong>Xem đáp án</strong> để sát hạch viên đối chiếu, rồi đánh giá <strong>Trả lời đúng</strong> hoặc <strong>Trả lời sai</strong> (trừ 5 điểm) cho câu vừa hỏi; bộ câu hỏi được xáo ngẫu nhiên cho mỗi lượt thi.</p>
         <h3>Số sàn và số tự động</h3>
         <p>Chọn <strong>Số sàn</strong> hoặc <strong>Số tự động</strong> ngay ở màn hình bắt đầu, trước khi vào bài thi. Các lỗi thao tác côn — tay số (ví dụ: dùng tay số không phù hợp, vòng tua động cơ quá mức, không vào đúng số, choạng lái khi sang số, lỗi đổi số...) chỉ áp dụng cho xe số sàn và sẽ tự ẩn khi chọn Số tự động, vì xe số tự động không có các thao tác này. Muốn đổi lại loại bài thi hoặc hộp số, bấm mũi tên quay lại ở góc trên bên trái.</p>
         <h3>Đo quãng đường bằng GPS</h3>
@@ -526,6 +570,29 @@ const WELCOME_SOUND = "chao-mung.wav";
 const WARN20_SOUND = "da-qua-20s.wav";
 const WARN30_SOUND = "da-qua-30s.wav";
 
+// Câu hỏi vấn đáp — sát hạch viên có thể hỏi thêm trong lúc thi đường trường, chủ yếu
+// xoay quanh biển báo, quy tắc giao thông, xử lý tình huống và kiến thức xe cơ bản.
+const VAN_DAP_QUESTIONS = [
+  { q:"Biển báo hình tam giác, viền đỏ, nền vàng thuộc nhóm biển gì?", a:"Nhóm biển báo nguy hiểm — cảnh báo trước các tình huống nguy hiểm có thể xảy ra phía trước để người lái chủ động phòng tránh." },
+  { q:"Biển báo hình tròn, viền đỏ, nền trắng thuộc nhóm biển gì?", a:"Nhóm biển báo cấm — biểu thị các điều cấm hoặc hạn chế mà người tham gia giao thông phải chấp hành." },
+  { q:"Vạch kẻ đường màu vàng nét đứt ở giữa đường có ý nghĩa gì?", a:"Là vạch phân chia hai chiều xe chạy, xe được phép cắt qua để vượt hoặc quay đầu khi đủ điều kiện an toàn." },
+  { q:"Khi gặp biển 'Cấm vượt', bạn xử lý như thế nào?", a:"Không được vượt xe khác cho đến khi hết hiệu lực của biển (có biển phụ ghi khoảng cách hoặc qua nơi có biển 'Hết cấm vượt')." },
+  { q:"Tốc độ tối đa cho phép của xe con trong khu vực đông dân cư (đường đôi, có dải phân cách) là bao nhiêu?", a:"Tối đa 60 km/h theo quy định hiện hành đối với đường đôi/đường một chiều có từ 2 làn xe cơ giới trở lên trong khu đông dân cư." },
+  { q:"Khi đến gần nơi giao nhau không có tín hiệu đèn, không có biển báo, bạn nhường đường theo nguyên tắc nào?", a:"Nhường đường cho xe đi đến từ bên phải; xe trên đường ưu tiên/đường chính được đi trước." },
+  { q:"Khi muốn chuyển làn đường, bạn cần thực hiện các bước nào?", a:"Bật xi nhan báo hướng, quan sát gương và điểm mù, chỉ chuyển làn khi đảm bảo an toàn, sau đó tắt xi nhan." },
+  { q:"Khi xe phía trước đột ngột phanh gấp, bạn xử lý như thế nào?", a:"Giữ khoảng cách an toàn từ trước, giảm tốc độ hoặc phanh dứt khoát, quan sát gương chiếu hậu trước khi xử lý để tránh xe sau đâm vào." },
+  { q:"Khi xe bị mất phanh đang di chuyển, bạn xử lý như thế nào?", a:"Giữ bình tĩnh, nhả chân ga, về số thấp để hãm tốc bằng động cơ, kéo phanh tay từ từ, bật đèn cảnh báo và tìm vị trí an toàn để dừng xe (tránh đánh lái hoặc phanh tay gấp)." },
+  { q:"Vì sao không nên đi sát xe phía trước ở tốc độ cao?", a:"Vì cần đủ khoảng cách và thời gian phản ứng để xử lý an toàn nếu xe phía trước phanh gấp hoặc gặp sự cố bất ngờ." },
+  { q:"Khi qua đường giao nhau với đường sắt không có rào chắn, bạn phải làm gì?", a:"Quan sát kỹ hai bên, chỉ đi qua khi chắc chắn không có tàu đang đến; nếu thấy tín hiệu hoặc chuông cảnh báo phải dừng lại cách đường ray một khoảng an toàn." },
+  { q:"Đèn tín hiệu giao thông màu vàng có ý nghĩa gì?", a:"Báo hiệu sự thay đổi tín hiệu, người lái phải giảm tốc độ và dừng trước vạch dừng, trừ khi đã đi quá gần vạch dừng không thể dừng an toàn." },
+  { q:"Vì sao phải thắt dây an toàn khi lái xe?", a:"Để giảm chấn thương do va đập/quán tính khi xảy ra va chạm hoặc phanh gấp, đây cũng là quy định bắt buộc theo luật giao thông." },
+  { q:"Khi phát hiện áp suất dầu động cơ (đèn báo dầu) bật sáng khi đang chạy, bạn xử lý thế nào?", a:"Giảm tốc độ, tấp vào lề đường an toàn, tắt máy kiểm tra ngay, không tiếp tục chạy để tránh hỏng động cơ." },
+  { q:"Vì sao cần kiểm tra gương chiếu hậu và điểm mù trước khi chuyển hướng?", a:"Để phát hiện phương tiện đang ở khu vực khuất tầm nhìn, tránh va chạm khi chuyển làn hoặc rẽ hướng." },
+  { q:"Khi trời mưa, đường trơn trượt, bạn cần lưu ý gì khi lái xe?", a:"Giảm tốc độ, tăng khoảng cách an toàn với xe phía trước, tránh phanh gấp hoặc đánh lái đột ngột để không bị trượt bánh." },
+  { q:"Còi xe được sử dụng trong trường hợp nào là đúng quy định?", a:"Chỉ dùng còi để báo hiệu khi cần thiết đảm bảo an toàn (ví dụ xin vượt ở nơi cho phép), không bấm còi liên tục hoặc trong khu vực cấm/giờ cấm." },
+  { q:"Khi lùi xe hoặc quay đầu xe ở nơi đông người, bạn cần làm gì để đảm bảo an toàn?", a:"Quan sát kỹ xung quanh qua gương và trực tiếp, bật đèn/còi cảnh báo nếu cần, nhờ người hỗ trợ quan sát nếu tầm nhìn hạn chế, thực hiện chậm rãi." },
+];
+
 // ---------------- State ----------------
 let modeKey = "sa-hinh";
 let transmission = "manual"; // "manual" (số sàn) | "auto" (số tự động)
@@ -552,6 +619,12 @@ let gpsStatus = "idle"; // idle | active | denied | unavailable | error | off
 let gpsEnabled = true;
 let currentSpeedKmh = 0;
 let speedCheck = null; // { kind:"increase"|"decrease", startSpeedKmh, startDistanceMeters, bai }
+let examTab = "bai"; // "bai" | "vandap" — chỉ áp dụng cho đường trường
+let vanDapOrder = [];
+let vanDapIndex = 0;
+let vanDapAnswered = 0;
+let vanDapCorrect = 0;
+let vanDapRevealed = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -791,6 +864,56 @@ function renderSpeedCheck(){
   $("speedCheckFill").style.width = distSince + "%";
 }
 
+// ---------------- Tab Vấn đáp (chỉ áp dụng cho Đường trường) ----------------
+function shuffleVanDap(){
+  vanDapOrder = VAN_DAP_QUESTIONS.map((_, i) => i);
+  for(let i = vanDapOrder.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [vanDapOrder[i], vanDapOrder[j]] = [vanDapOrder[j], vanDapOrder[i]];
+  }
+  vanDapIndex = 0;
+  vanDapAnswered = 0;
+  vanDapCorrect = 0;
+  vanDapRevealed = false;
+}
+function currentVanDapQuestion(){ return VAN_DAP_QUESTIONS[vanDapOrder[vanDapIndex]]; }
+function renderVanDap(){
+  if(examTab !== "vandap") return;
+  const q = currentVanDapQuestion();
+  $("vandapProgress").textContent = `Câu ${vanDapIndex + 1}/${VAN_DAP_QUESTIONS.length} · Đã hỏi ${vanDapAnswered} · Đúng ${vanDapCorrect}`;
+  $("vandapQuestion").textContent = q.q;
+  $("vandapAnswer").textContent = q.a;
+  $("vandapAnswer").style.display = vanDapRevealed ? "" : "none";
+  $("vandapRevealBtn").textContent = vanDapRevealed ? "Ẩn đáp án" : "Xem đáp án";
+  $("vandapHint").textContent = isLive ? "Trả lời sai sẽ trừ điểm" : "Chế độ xem trước, không trừ điểm";
+}
+function vanDapGoto(delta){
+  vanDapIndex = (vanDapIndex + delta + VAN_DAP_QUESTIONS.length) % VAN_DAP_QUESTIONS.length;
+  vanDapRevealed = false;
+  renderVanDap();
+}
+function vanDapMark(correct){
+  const q = currentVanDapQuestion();
+  vanDapAnswered++;
+  if(correct) vanDapCorrect++;
+  if(isLive){
+    if(!correct){
+      score = Math.max(0, score - 5);
+      flashDelta("−5");
+      logHistory("Vấn đáp", `Trả lời sai: ${q.q}`, 5, false);
+    }
+    render();
+  }
+  vanDapGoto(1);
+}
+function setExamTab(tab){
+  examTab = tab;
+  $("baiTabPanel").style.display = tab === "bai" ? "" : "none";
+  $("vandapTabPanel").style.display = tab === "vandap" ? "" : "none";
+  document.querySelectorAll(".exam-tab").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  if(tab === "vandap") renderVanDap();
+}
+
 function startAutoTimerXuatPhat(){
   clearAutoTimers();
   autoTimers.push(setTimeout(()=>{
@@ -824,6 +947,8 @@ function startExam(){
   resetHistory();
   resetGps();
   speedCheck = null;
+  shuffleVanDap();
+  if(examTab === "vandap") renderVanDap();
   startGpsTracking();
   startedAt = Date.now();
   isLive = true;
@@ -915,6 +1040,7 @@ function finalizeExamState(){
   resetHistory();
   resetGps();
   speedCheck = null;
+  shuffleVanDap();
 }
 function askConfirm(text, onConfirm){
   pendingConfirmAction = onConfirm;
@@ -955,6 +1081,10 @@ function render(){
   renderErrorGrid();
   renderBottomBar();
   renderSpeedCheck();
+
+  $("examTabs").style.display = modeKey === "duong-truong" ? "grid" : "none";
+  if(modeKey !== "duong-truong" && examTab === "vandap") setExamTab("bai");
+  else if(examTab === "vandap") renderVanDap();
 }
 
 function renderActions(){
@@ -1194,6 +1324,14 @@ $("setupStartBtn").onclick = () => {
   finalizeExamState();
   showExamView();
 };
+
+document.querySelectorAll(".exam-tab").forEach(b => { b.onclick = () => setExamTab(b.dataset.tab); });
+$("vandapPrev").onclick = () => vanDapGoto(-1);
+$("vandapNext").onclick = () => vanDapGoto(1);
+$("vandapRevealBtn").onclick = () => { vanDapRevealed = !vanDapRevealed; renderVanDap(); };
+$("vandapCorrect").onclick = () => vanDapMark(true);
+$("vandapWrong").onclick = () => vanDapMark(false);
+shuffleVanDap();
 
 $("confirmStay").onclick = () => { pendingConfirmAction = null; $("confirmBox").classList.remove("open"); };
 $("confirmSwitch").onclick = () => {
