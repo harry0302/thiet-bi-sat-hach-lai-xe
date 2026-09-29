@@ -108,6 +108,11 @@
   @keyframes gpsPulse{0%,100%{box-shadow:0 0 0 0 rgba(5,150,105,.4)}50%{box-shadow:0 0 0 5px rgba(5,150,105,0)}}
   .gps-sep{color:var(--border)}
   .gps-status{flex:1;min-width:0;color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .speedcheck-row{margin-top:9px;padding-top:8px;border-top:1px solid var(--border)}
+  .speedcheck-label{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11.5px;font-weight:700;color:var(--fg);margin-bottom:5px}
+  .speedcheck-label span:last-child{flex:none;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:800}
+  .speedcheck-bar{height:6px;border-radius:999px;background:var(--secondary);overflow:hidden}
+  .speedcheck-bar-fill{height:100%;background:var(--brand-grad);border-radius:999px;transition:width .2s linear}
   .switch{position:relative;flex:none;width:34px;height:19px;border:none;background:none;padding:0;cursor:pointer}
   .switch .track{position:absolute;inset:0;background:var(--border);border-radius:999px;transition:background-color .18s}
   .switch .thumb{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .18s}
@@ -256,6 +261,13 @@
           <button class="switch" id="gpsSwitch" role="switch" aria-checked="true" aria-label="Bật/tắt đo quãng đường GPS">
             <span class="track"></span><span class="thumb"></span>
           </button>
+        </div>
+        <div class="speedcheck-row" id="speedCheckRow" style="display:none">
+          <div class="speedcheck-label">
+            <span id="speedCheckText">Đang chờ đổi tốc độ…</span>
+            <span id="speedCheckDist">0/100 m</span>
+          </div>
+          <div class="speedcheck-bar"><div class="speedcheck-bar-fill" id="speedCheckFill" style="width:0%"></div></div>
         </div>
       </div>
     </div>
@@ -737,14 +749,16 @@ function renderGps(){
 // cần chờ đủ 100m; nếu đi hết 100m mà vẫn chưa đạt thì tự động trừ lỗi "Không đạt tốc độ".
 function maybeStartSpeedCheck(bai){
   speedCheck = null;
-  if(modeKey !== "duong-truong" || !isLive) return;
-  if(bai.id === 2) speedCheck = { kind:"increase", startSpeedKmh: currentSpeedKmh, startDistanceMeters: distanceMeters, bai };
-  else if(bai.id === 3) speedCheck = { kind:"decrease", startSpeedKmh: currentSpeedKmh, startDistanceMeters: distanceMeters, bai };
+  if(modeKey === "duong-truong" && isLive){
+    if(bai.id === 2) speedCheck = { kind:"increase", startSpeedKmh: currentSpeedKmh, startDistanceMeters: distanceMeters, bai };
+    else if(bai.id === 3) speedCheck = { kind:"decrease", startSpeedKmh: currentSpeedKmh, startDistanceMeters: distanceMeters, bai };
+  }
+  renderSpeedCheck();
 }
 function evaluateSpeedCheck(){
   if(!speedCheck || !isLive) return;
   // Đã chuyển sang bài khác thì huỷ theo dõi.
-  if(currentBai() !== speedCheck.bai){ speedCheck = null; return; }
+  if(currentBai() !== speedCheck.bai){ speedCheck = null; renderSpeedCheck(); return; }
 
   const deltaKmh = speedCheck.kind === "increase"
     ? (currentSpeedKmh - speedCheck.startSpeedKmh)
@@ -752,6 +766,7 @@ function evaluateSpeedCheck(){
   if(deltaKmh >= 5){
     playSound("fx-tun-auto", "tun.wav");
     speedCheck = null;
+    renderSpeedCheck();
     return;
   }
 
@@ -762,6 +777,18 @@ function evaluateSpeedCheck(){
     if(err) triggerError(err, `err-${modeKey}-${bai.id}-${err.label}`);
     speedCheck = null;
   }
+  renderSpeedCheck();
+}
+function renderSpeedCheck(){
+  const row = $("speedCheckRow");
+  if(!speedCheck){ row.style.display = "none"; return; }
+  row.style.display = "";
+  const distSince = Math.max(0, Math.min(100, distanceMeters - speedCheck.startDistanceMeters));
+  $("speedCheckText").textContent = speedCheck.kind === "increase"
+    ? "Đang chờ tăng tốc +5 km/h…"
+    : "Đang chờ giảm tốc −5 km/h…";
+  $("speedCheckDist").textContent = `${Math.round(distSince)}/100 m`;
+  $("speedCheckFill").style.width = distSince + "%";
 }
 
 function startAutoTimerXuatPhat(){
@@ -927,6 +954,7 @@ function render(){
   renderChooseGrid();
   renderErrorGrid();
   renderBottomBar();
+  renderSpeedCheck();
 }
 
 function renderActions(){
