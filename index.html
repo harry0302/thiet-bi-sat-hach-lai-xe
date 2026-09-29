@@ -519,8 +519,7 @@ let elapsedTimer = null;
 let pendingModeSwitch = null;
 let autoTimers = [];
 let playingKey = null;
-let audioCache = new Map(); // file -> HTMLAudioElement đã preload sẵn
-let currentAudio = null;    // audio element đang phát (để pause/dừng)
+let audioEl = new Audio();
 let deltaTimer = null;
 let history = []; // { t: elapsedMs, bai, label, points, critical }
 let gpsWatchId = null;
@@ -543,17 +542,11 @@ function fmtTime(ms){
 
 function clearAutoTimers(){ autoTimers.forEach(clearTimeout); autoTimers = []; }
 
-// Lấy (hoặc tạo mới nếu chưa có) audio element đã preload cho 1 file, để bấm là phát ngay
-// thay vì phải tải lại từ đầu mỗi lần đổi src trên một <audio> dùng chung.
-function getAudio(file){
-  let a = audioCache.get(file);
-  if(!a){
-    a = new Audio(encodeURI(`${AUDIO_BASE}/${file}`));
-    a.preload = "auto";
-    audioCache.set(file, a);
-  }
-  return a;
-}
+// "Làm nóng" cache mạng của trình duyệt bằng fetch() cho toàn bộ file âm thanh,
+// để lần phát đầu tiên không phải chờ tải. Chỉ dùng MỘT <audio> element thật sự để
+// phát (bên dưới) — tạo hàng chục Audio() cùng lúc từng khiến một số trình duyệt di
+// động (đặc biệt iOS Safari) âm thầm chặn phát toàn bộ âm thanh do vượt giới hạn số
+// media element hoạt động đồng thời.
 function preloadAllAudio(){
   const files = new Set();
   MODES.forEach(m => m.bai.forEach(bai=>{
@@ -563,34 +556,31 @@ function preloadAllAudio(){
   GENERIC_GROUPS.forEach(g => g.items.forEach(e => files.add(e.file)));
   Object.values(QUICK_SOUND).forEach(({pass,fail}) => { files.add(pass); files.add(fail); });
   [STRIP_SOUND, WELCOME_SOUND, WARN20_SOUND, WARN30_SOUND, "ting-ton.wav", "tun.wav"].forEach(f => files.add(f));
-  files.forEach(f => { if(f) getAudio(f).load(); });
+  files.forEach(f => { if(f) fetch(encodeURI(`${AUDIO_BASE}/${f}`)).catch(()=>{}); });
 }
 
 function playSound(key, file, chainedFile, chainedKey){
   if(!file) return;
-  if(currentAudio){ currentAudio.pause(); currentAudio.onended = null; }
-  const a = getAudio(file);
-  a.currentTime = 0;
-  a.onended = () => {
+  audioEl.pause();
+  audioEl.src = encodeURI(`${AUDIO_BASE}/${file}`);
+  audioEl.currentTime = 0;
+  audioEl.onended = () => {
     if(chainedFile){
-      const b = getAudio(chainedFile);
-      b.currentTime = 0;
-      b.onended = () => { if(playingKey === chainedKey) playingKey = null; renderBottomBar(); };
+      audioEl.src = encodeURI(`${AUDIO_BASE}/${chainedFile}`);
+      audioEl.currentTime = 0;
+      audioEl.onended = () => { if(playingKey === chainedKey) playingKey = null; renderBottomBar(); };
       playingKey = chainedKey;
-      currentAudio = b;
-      renderBottomBar();
-      b.play().catch(()=>{ playingKey = null; renderBottomBar(); });
+      audioEl.play().catch(()=>{ playingKey = null; renderBottomBar(); });
     } else {
       if(playingKey === key) playingKey = null;
       renderBottomBar();
     }
   };
   playingKey = key;
-  currentAudio = a;
   renderBottomBar();
-  a.play().catch(()=>{ playingKey = null; renderBottomBar(); });
+  audioEl.play().catch(()=>{ playingKey = null; renderBottomBar(); });
 }
-function stopSound(){ if(currentAudio) currentAudio.pause(); playingKey = null; renderBottomBar(); }
+function stopSound(){ audioEl.pause(); playingKey = null; renderBottomBar(); }
 
 function flashDelta(text){
   $("scoreDelta").textContent = text;
