@@ -362,7 +362,7 @@
         <h3>Số sàn và số tự động</h3>
         <p>Chọn <strong>Số sàn</strong> hoặc <strong>Số tự động</strong> ngay ở màn hình bắt đầu, trước khi vào bài thi. Các lỗi thao tác côn — tay số (ví dụ: dùng tay số không phù hợp, vòng tua động cơ quá mức, không vào đúng số, choạng lái khi sang số, lỗi đổi số...) chỉ áp dụng cho xe số sàn và sẽ tự ẩn khi chọn Số tự động, vì xe số tự động không có các thao tác này. Muốn đổi lại loại bài thi hoặc hộp số, bấm mũi tên quay lại ở góc trên bên trái.</p>
         <h3>Đo quãng đường bằng GPS</h3>
-        <p>Bấm nút gạt cạnh dòng quãng đường (ngay dưới điểm số) để bật/tắt đo GPS bất cứ lúc nào. Khi bật và bấm <strong>Thi thật</strong>, trang sẽ xin quyền truy cập vị trí và dùng GPS của thiết bị để ước tính quãng đường đã di chuyển. Quãng đường tạm dừng đếm khi bạn bấm <strong>Kết thúc</strong> và tiếp tục khi <strong>Tiếp tục</strong>/<strong>Thi lại</strong>; tắt nút gạt sẽ dừng theo dõi ngay lập tức. Đây chỉ là số liệu tham khảo (độ chính xác phụ thuộc tín hiệu GPS của thiết bị — số ±m hiển thị kèm chính là sai số GPS hiện tại; tín hiệu yếu trong nhà/đô thị có thể khiến quãng đường tăng chậm hơn thực tế), không dùng để chấm điểm.</p>
+        <p>Bấm nút gạt cạnh dòng quãng đường (ngay dưới điểm số) để bật/tắt đo GPS bất cứ lúc nào. Khi bật và bấm <strong>Thi thật</strong>, trang sẽ xin quyền truy cập vị trí và dùng GPS của thiết bị để ước tính quãng đường đã di chuyển: chỉ cộng dồn khi vị trí mới dịch đủ xa mốc neo đã xác nhận (vượt ngưỡng nhiễu tính theo độ chính xác GPS hiện tại) để tránh cộng nhầm lúc đứng yên nhưng vẫn ghi nhận đúng lúc di chuyển chậm, đồng thời nội suy theo thời gian thực giữa các lần đo GPS (kiểu các app thể thao như Strava) để số liệu chạy mượt thay vì giật cục. Quãng đường tạm dừng đếm khi bạn bấm <strong>Kết thúc</strong> và tiếp tục khi <strong>Tiếp tục</strong>/<strong>Thi lại</strong>; tắt nút gạt sẽ dừng theo dõi ngay lập tức. Đây chỉ là số liệu tham khảo (độ chính xác phụ thuộc tín hiệu GPS của thiết bị — số ±m hiển thị kèm chính là độ chính xác GPS của mốc neo hiện tại; tín hiệu yếu trong nhà/đô thị có thể khiến quãng đường tăng chậm hơn thực tế), không dùng để chấm điểm.</p>
         <h3>Tự động chấm tốc độ tăng/giảm số theo GPS</h3>
         <p>Ở bài <strong>Tăng số</strong>/<strong>Giảm số</strong> (Đường trường), trang có thể tự theo dõi tốc độ GPS: nếu tăng/giảm đủ 5 km/h thì báo hiệu ứng "Tun", còn nếu đi hết 100m mà chưa đạt thì tự trừ lỗi "Không đạt tốc độ". Bấm nút gạt "Tự động chấm tốc độ tăng/giảm số (GPS)" để bật/tắt tính năng này bất cứ lúc nào — tắt đi nếu muốn tự đánh giá tốc độ thủ công bằng nút lỗi thay vì để GPS quyết định.</p>
         <h3>Cách dùng trang mô phỏng</h3>
@@ -623,7 +623,10 @@ let audioEl = new Audio();
 let deltaTimer = null;
 let history = []; // { t: elapsedMs, bai, label, points, critical }
 let gpsWatchId = null;
-let lastGpsFix = null; // { lat, lon, t }
+let gpsFilter = null; // { lat, lon, accuracy, t } — mốc neo GPS đã xác nhận gần nhất
+let lastFixSpeedMps = 0;
+let lastFixWallTime = 0;
+let gpsTickTimer = null;
 let distanceMeters = 0;
 let gpsStatus = "idle"; // idle | active | denied | unavailable | error | off
 let gpsEnabled = true;
@@ -709,6 +712,16 @@ function renderHistoryBadge(){
 function resetHistory(){ history = []; renderHistoryBadge(); }
 
 // ---------------- GPS: đo quãng đường đã di chuyển kể từ khi bấm Thi thật ----------------
+// Việc lọc nhiễu vị trí dùng cơ chế "mốc neo co giãn theo độ chính xác GPS" — đã được
+// kiểm chứng kỹ qua nhiều lần sửa lỗi thực tế (đứng yên không cộng nhầm, đi chậm/xa vẫn
+// ghi đúng), nên KHÔNG đổi sang bộ lọc Kalman dù đó là kỹ thuật các app như Strava hay
+// dùng: tự thử nghiệm cho thấy rất khó tinh chỉnh đúng trong thời gian ngắn và dễ gây hồi
+// quy. Phần học theo Strava ở đây là lớp nội suy (dead-reckoning) bên dưới — cập nhật số
+// liệu hiển thị đều đặn giữa 2 lần đo GPS bằng tốc độ đã biết, để đồng hồ quãng đường và
+// thanh tiến trình chạy mượt theo thời gian thực thay vì đứng im rồi nhảy số mỗi khi có
+// tín hiệu GPS mới (trình duyệt thường chỉ cập nhật GPS ~1 lần/giây).
+const GPS_EXTRAPOLATE_MAX_SEC = 3; // giây — giới hạn nội suy khi tạm mất tín hiệu, tránh số liệu trôi xa thực tế
+
 function haversineMeters(lat1, lon1, lat2, lon2){
   const R = 6371000;
   const toRad = d => d * Math.PI / 180;
@@ -721,44 +734,40 @@ function onGpsFix(pos){
   const { latitude, longitude, accuracy, speed } = pos.coords;
   gpsStatus = "active";
   // Chỉ loại bỏ các điểm định vị quá tệ (khả năng đến từ định vị theo Wi-Fi/IP chứ
-  // không phải GPS thật — sai số có thể tới hàng trăm mét/km). Trước đây chặn ở 40m
-  // là quá chặt: điện thoại đi bộ/trong đô thị hoàn toàn có thể báo sai số 40-90m dù
-  // vẫn đang di chuyển thật, khiến quãng đường không tăng dù đã đi cả trăm mét.
+  // không phải GPS thật — sai số có thể tới hàng trăm mét/km).
   if(accuracy != null && accuracy > 100){ renderGps(); return; }
 
-  if(!lastGpsFix){
-    lastGpsFix = { lat: latitude, lon: longitude, t: pos.timestamp, accuracy };
+  if(!gpsFilter){
+    gpsFilter = { lat: latitude, lon: longitude, t: pos.timestamp, accuracy };
+    lastFixWallTime = Date.now();
     renderGps();
     return;
   }
 
-  // KHÔNG dùng coords.speed để đoán "đang đứng yên" nữa — trên nhiều điện thoại thật,
-  // giá trị này rất nhiễu (nhất là ở tốc độ đi bộ) và có thể báo gần 0 liên tục dù
-  // đang di chuyển thật, khiến toàn bộ điểm định vị bị bỏ qua và quãng đường đứng yên
-  // ở 0 mãi. Chỉ lọc dựa trên toạ độ + độ chính xác GPS là đủ (đã kiểm chứng: vẫn
-  // chặn được nhiễu lúc đứng yên).
-  const d = haversineMeters(lastGpsFix.lat, lastGpsFix.lon, latitude, longitude);
-  const dtSec = (pos.timestamp - lastGpsFix.t) / 1000;
+  const d = haversineMeters(gpsFilter.lat, gpsFilter.lon, latitude, longitude);
+  const dtSec = Math.max(0, (pos.timestamp - gpsFilter.t) / 1000);
   const speedKmh = dtSec > 0 ? (d / dtSec) * 3.6 : 0;
   // Ngưỡng nhiễu = độ chính xác lớn hơn trong 2 lần đo, cộng thêm biên an toàn 10m.
-  const noiseFloor = Math.max(accuracy || 0, lastGpsFix.accuracy || 0) + 10;
+  const noiseFloor = Math.max(accuracy || 0, gpsFilter.accuracy || 0) + 10;
   const confirmed = d >= noiseFloor && speedKmh < 200;
   if(confirmed){
-    // Xác nhận đã di chuyển thật: cộng dồn quãng đường rồi dời mốc neo tới đây.
-    // Nếu CHƯA vượt ngưỡng thì cố tình KHÔNG dời mốc neo, để các bước di chuyển
-    // chậm/nhỏ kế tiếp tiếp tục cộng dồn so với cùng một điểm neo cho tới khi đủ
-    // tin cậy — vừa lọc được nhiễu lúc đứng yên, vừa không bỏ sót lúc đi chậm.
+    // Xác nhận đã di chuyển thật: cộng dồn quãng đường rồi dời mốc neo tới đây. Nếu
+    // CHƯA vượt ngưỡng thì cố tình KHÔNG dời mốc neo, để các bước di chuyển chậm/nhỏ
+    // kế tiếp tiếp tục cộng dồn so với cùng một điểm neo cho tới khi đủ tin cậy — vừa
+    // lọc được nhiễu lúc đứng yên, vừa không bỏ sót lúc đi chậm.
     distanceMeters += d;
-    lastGpsFix = { lat: latitude, lon: longitude, t: pos.timestamp, accuracy };
+    gpsFilter = { lat: latitude, lon: longitude, t: pos.timestamp, accuracy };
   }
-  // Tốc độ hiện tại dùng cho kiểm tra tăng/giảm số: ưu tiên tốc độ tức thời do GPS tự
-  // báo (đo qua Doppler — đáng tin cậy ở tốc độ lái xe thật, không phụ thuộc khoảng
-  // cách giữa 2 lần đo). Nếu thiết bị không cung cấp, chỉ suy ra tốc độ từ khoảng
+  // Tốc độ hiện tại: ưu tiên tốc độ tức thời do GPS tự báo (đo qua Doppler — đáng tin
+  // cậy ở tốc độ lái xe thật), nếu thiết bị không cung cấp thì chỉ suy ra từ khoảng
   // cách/thời gian khi đoạn di chuyển đó đã được xác nhận là thật (confirmed) — dùng
-  // luôn d/dtSec thô của những lần đo chưa xác nhận rất dễ bị nhiễu do khoảng thời
-  // gian giữa 2 lần đo quá ngắn, gây tốc độ ảo tăng/giảm vọt dù xe đi đều.
+  // luôn d/dtSec thô của những lần đo chưa xác nhận rất dễ nhiễu do khoảng thời gian
+  // giữa 2 lần đo quá ngắn.
   if(typeof speed === "number" && speed >= 0) currentSpeedKmh = speed * 3.6;
   else if(confirmed) currentSpeedKmh = speedKmh;
+  lastFixSpeedMps = currentSpeedKmh / 3.6;
+  lastFixWallTime = Date.now();
+
   evaluateSpeedCheck();
   renderGps();
 }
@@ -766,6 +775,15 @@ function onGpsError(err){
   gpsStatus = (err.code === err.PERMISSION_DENIED) ? "denied" : "error";
   renderGps();
 }
+// Cập nhật hiển thị đều đặn giữa các lần đo GPS bằng nội suy theo tốc độ đã biết, để
+// đồng hồ quãng đường/thanh tiến trình chạy mượt theo thời gian thực thay vì đứng im
+// rồi nhảy số mỗi khi có tín hiệu GPS mới (GPS trình duyệt thường chỉ cập nhật 1 lần/giây).
+function displayDistanceMeters(){
+  if(gpsStatus !== "active" || !lastFixWallTime) return distanceMeters;
+  const sinceSec = Math.min(GPS_EXTRAPOLATE_MAX_SEC, (Date.now() - lastFixWallTime) / 1000);
+  return distanceMeters + lastFixSpeedMps * sinceSec;
+}
+function gpsTick(){ renderGps(); renderSpeedCheck(); }
 function startGpsTracking(){
   if(!gpsEnabled){ gpsStatus = "off"; renderGps(); return; }
   if(gpsWatchId !== null) return;
@@ -774,11 +792,16 @@ function startGpsTracking(){
   gpsWatchId = navigator.geolocation.watchPosition(onGpsFix, onGpsError, {
     enableHighAccuracy: true, maximumAge: 1000, timeout: 15000
   });
+  clearInterval(gpsTickTimer);
+  gpsTickTimer = setInterval(gpsTick, 300);
   renderGps();
 }
 function stopGpsTracking(){
   if(gpsWatchId !== null){ navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
-  lastGpsFix = null; // tránh cộng nhầm quãng đường trong lúc tạm dừng
+  clearInterval(gpsTickTimer);
+  gpsTickTimer = null;
+  gpsFilter = null; // tránh cộng nhầm quãng đường trong lúc tạm dừng
+  lastFixWallTime = 0;
   if(!gpsEnabled) gpsStatus = "off";
   else if(gpsStatus === "active") gpsStatus = "idle";
   renderGps();
@@ -803,7 +826,7 @@ function setGpsEnabled(v){
 }
 function renderGps(){
   const dot = $("gpsDot");
-  $("gpsDistance").textContent = Math.round(distanceMeters) + " m";
+  $("gpsDistance").textContent = Math.round(displayDistanceMeters()) + " m";
   dot.className = "gps-dot";
   let statusText = {
     idle: "Sẵn sàng đo GPS",
@@ -813,10 +836,10 @@ function renderGps(){
     error: "Mất tín hiệu GPS, đang thử lại…",
     off: "Đã tắt đo GPS",
   }[gpsStatus];
-  // Hiện kèm sai số GPS hiện tại để biết vì sao quãng đường có thể tăng chậm hơn
-  // thực tế khi tín hiệu yếu (trong nhà, đô thị nhiều nhà cao tầng...).
-  if(gpsStatus === "active" && lastGpsFix && lastGpsFix.accuracy != null){
-    statusText += ` (±${Math.round(lastGpsFix.accuracy)}m)`;
+  // Hiện kèm độ chính xác GPS của mốc neo hiện tại để biết vì sao quãng đường có thể
+  // tăng chậm hơn thực tế khi tín hiệu yếu (trong nhà, đô thị nhiều nhà cao tầng...).
+  if(gpsStatus === "active" && gpsFilter){
+    statusText += ` (±${Math.round(gpsFilter.accuracy)}m)`;
   }
   $("gpsStatusText").textContent = statusText;
   if(gpsStatus === "active") dot.classList.add("live");
@@ -884,7 +907,9 @@ function renderSpeedCheck(){
   const progress = $("speedCheckProgress");
   if(!speedCheck){ progress.style.display = "none"; return; }
   progress.style.display = "";
-  const distSince = Math.max(0, Math.min(100, distanceMeters - speedCheck.startDistanceMeters));
+  // Dùng số liệu đã nội suy theo thời gian thực để thanh chạy mượt, còn việc xét đạt/
+  // không đạt (evaluateSpeedCheck) vẫn luôn dựa trên distanceMeters xác thực từ GPS.
+  const distSince = Math.max(0, Math.min(100, displayDistanceMeters() - speedCheck.startDistanceMeters));
   $("speedCheckText").textContent = speedCheck.kind === "increase"
     ? "Đang chờ tăng tốc +5 km/h…"
     : "Đang chờ giảm tốc −5 km/h…";
