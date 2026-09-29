@@ -153,8 +153,12 @@
   .table-group{margin-bottom:14px}
   .table-group .g-title{font-size:12.5px;font-weight:800;margin-bottom:6px}
   .table-card{border:1px solid var(--border);border-radius:16px;overflow:hidden}
-  .table-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 13px;border-bottom:1px solid var(--border);background:var(--card)}
+  .table-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 13px;border-bottom:1px solid var(--border);background:var(--card);width:100%;text-align:left}
   .table-row:last-child{border-bottom:none}
+  .table-row.clickable{appearance:none;-webkit-appearance:none;border:none;border-bottom:1px solid var(--border);outline:none;font-family:inherit;color:inherit;cursor:pointer;transition:transform .1s,background-color .15s}
+  .table-row.clickable:last-child{border-bottom:none}
+  .table-row.clickable:hover{background:var(--secondary)}
+  .table-row.clickable:active{transform:scale(.98)}
   .table-row span.lbl{font-size:12.5px}
   .table-row span.pt{flex:none;padding:2px 8px;border-radius:7px;font-size:10.5px;font-weight:900;background:var(--danger-soft);color:var(--danger)}
   .table-row span.pt.critical{background:var(--danger);color:#fff}
@@ -427,26 +431,27 @@ const MODES = [
   }
 ];
 
-// Sinh sản chung áp dụng cho mọi bài (hiển thị trong Bảng điểm)
+// Lỗi chung áp dụng cho mọi bài (hiển thị & bấm được trong Bảng điểm, trừ khi
+// bài đang chọn đã có sẵn lỗi cùng tên trong danh sách lỗi riêng của nó)
 const GENERIC_GROUPS = [
   { label:"Thời gian", items:[
-    {label:"Quá 20 giây", points:5},
-    {label:"Quá 30 giây", critical:true},
-    {label:"Quá thời gian một bài", points:5},
-    {label:"Quá thời gian nộp bài", points:5},
-    {label:"Quá tổng thời gian", points:5},
+    {label:"Quá 20 giây", file:"da-qua-20s.wav", points:5},
+    {label:"Quá 30 giây", file:"da-qua-30s.wav", critical:true},
+    {label:"Quá thời gian một bài", file:"qua-thoi-gian-mot-bai.wav", points:5},
+    {label:"Quá thời gian nộp bài", file:"qua-thoi-gian-nop-bai.wav", points:5},
+    {label:"Quá tổng thời gian", file:"qua-tong-thoi-gian.wav", points:5},
   ]},
   { label:"Lỗi chung", items:[
-    {label:"Không thắt dây an toàn", points:5},
-    {label:"Chết máy", points:5},
-    {label:"Không bật xi nhan", points:5},
-    {label:"Không tắt xi nhan", points:5},
-    {label:"Vi phạm quy tắc giao thông", points:5},
-    {label:"Xe bị rung giật", points:5},
-    {label:"Xe bị choạng lái", points:5},
-    {label:"Đi sai đường", critical:true},
-    {label:"Vòng tua động cơ quá mức", points:5},
-    {label:"Không về được số 0 / P", points:5},
+    {label:"Không thắt dây an toàn", file:"khong-that-day-an-toan.wav", points:5},
+    {label:"Chết máy", file:"chet-may.wav", points:5},
+    {label:"Không bật xi nhan", file:"khong-bat-xi-nhan.wav", points:5},
+    {label:"Không tắt xi nhan", file:"khong-tat-xi-nhan.wav", points:5},
+    {label:"Vi phạm quy tắc giao thông", file:"vi-pham-quy-tac-giao-thong-duong-bo.wav", points:5},
+    {label:"Xe bị rung giật", file:"xe-bi-rung-giat.wav", points:5},
+    {label:"Xe bị choạng lái", file:"xe-bi-choang-lai.wav", points:5},
+    {label:"Đi sai đường", file:"di-sai-duong.wav", critical:true},
+    {label:"Vòng tua động cơ quá mức", file:"vong-tua-dong-co-qua-muc.wav", points:5},
+    {label:"Không về được số 0 / P", file:"khong-ve-duoc-so-khong.wav", points:5},
   ]},
 ];
 
@@ -776,15 +781,21 @@ function openScoreSheet(){
     wrap.appendChild(card);
     body.appendChild(wrap);
   });
+  const activeBai = currentBai();
+  const activeLabels = new Set(activeBai.errors.map(e=>e.label));
   GENERIC_GROUPS.forEach(g=>{
+    const items = g.items.filter(e => !activeLabels.has(e.label));
+    if(items.length === 0) return;
     const wrap = document.createElement("div"); wrap.className = "table-group";
     const title = document.createElement("div"); title.className = "g-title";
-    title.textContent = `${g.label} (mọi bài)`;
+    title.textContent = `${g.label} (mọi bài — áp dụng cho "${activeBai.short}")`;
     wrap.appendChild(title);
     const card = document.createElement("div"); card.className = "table-card";
-    g.items.forEach(e=>{
-      const row = document.createElement("div"); row.className = "table-row";
+    items.forEach(e=>{
+      const key = `err-generic-${modeKey}-${e.label}`;
+      const row = document.createElement("button"); row.className = "table-row clickable";
       row.innerHTML = `<span class="lbl">${e.label}</span><span class="pt${e.critical?" critical":""}">${e.critical ? "LOẠI" : "−"+(e.points??5)+" điểm"}</span>`;
+      row.onclick = () => triggerError(e, key);
       card.appendChild(row);
     });
     wrap.appendChild(card);
