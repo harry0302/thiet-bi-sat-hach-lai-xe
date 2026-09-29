@@ -108,14 +108,17 @@
   @keyframes gpsPulse{0%,100%{box-shadow:0 0 0 0 rgba(5,150,105,.4)}50%{box-shadow:0 0 0 5px rgba(5,150,105,0)}}
   .gps-sep{color:var(--border)}
   .gps-status{color:var(--muted);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .mode-toggle{margin-top:10px;padding:4px;display:grid;grid-template-columns:1fr 1fr;gap:4px}
-  .mode-toggle button{border:none;background:transparent;border-radius:13px;padding:9px 4px;font-family:inherit;font-weight:800;font-size:13px;color:var(--muted);cursor:pointer}
-  .mode-toggle button.active{background:var(--brand-grad);color:#fff;box-shadow:var(--shadow-pop)}
-  .gearbox-row{margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px}
-  .gearbox-label{font-size:11.5px;font-weight:800;color:var(--muted)}
-  .gearbox-toggle{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:3px}
-  .gearbox-toggle button{border:none;background:transparent;border-radius:8px;padding:5px 10px;font-family:inherit;font-weight:800;font-size:11.5px;color:var(--muted);cursor:pointer}
-  .gearbox-toggle button.active{background:var(--accent);color:var(--accent-fg)}
+  .setup-view{padding:4px 16px 28px}
+  .setup-group{margin-top:20px}
+  .setup-group-label{font-size:13px;font-weight:900;margin-bottom:8px;color:var(--fg)}
+  .setup-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .setup-card{border:1.5px solid var(--border);background:var(--card);border-radius:18px;padding:14px 12px;text-align:left;cursor:pointer;font-family:inherit;transition:transform .12s,background-color .15s,border-color .15s}
+  .setup-card:active{transform:scale(.97)}
+  .setup-card .sc-title{font-size:14px;font-weight:900;color:var(--fg)}
+  .setup-card .sc-sub{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4}
+  .setup-card.active{background:var(--accent);border-color:var(--primary);box-shadow:var(--shadow-card)}
+  .setup-card.active .sc-title{color:var(--accent-fg)}
+  .setup-start{width:100%;padding:15px;border-radius:16px;font-size:15px;margin-top:26px}
   h2.section{font-size:16px;font-weight:900;margin:16px 0 8px}
   .choose-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
   .choose-grid.two{grid-template-columns:repeat(2,1fr)}
@@ -191,7 +194,7 @@
 <body>
 <div class="shell">
   <header>
-    <button class="iconbtn" aria-label="Về trang chủ" onclick="location.reload()">
+    <button class="iconbtn" id="backBtn" aria-label="Đổi loại bài thi / hộp số" style="visibility:hidden">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
     </button>
     <div class="brand">
@@ -205,6 +208,23 @@
     </button>
   </header>
 
+  <section id="setupView" class="setup-view">
+    <div class="intro">
+      <h1>Chọn hình thức thi</h1>
+      <p>Thiết lập một lần trước khi vào các bài thi</p>
+    </div>
+    <div class="setup-group">
+      <div class="setup-group-label">Loại bài thi</div>
+      <div class="setup-options" id="setupModeOptions"></div>
+    </div>
+    <div class="setup-group">
+      <div class="setup-group-label">Loại hộp số</div>
+      <div class="setup-options" id="setupGearboxOptions"></div>
+    </div>
+    <button class="btn btn-primary setup-start" id="setupStartBtn">Bắt đầu</button>
+  </section>
+
+  <div id="examView" style="display:none">
   <section class="intro">
     <h1>Thiết bị giả lập thi sát hạch</h1>
     <p>Luyện phản xạ khẩu lệnh &amp; chấm điểm — xoay ngang máy để dùng thoải mái hơn</p>
@@ -233,13 +253,6 @@
           <span id="gpsStatusText" class="gps-status">GPS chưa bật</span>
         </div>
       </div>
-    </div>
-
-    <div class="card mode-toggle" id="modeToggle"></div>
-
-    <div class="gearbox-row">
-      <span class="gearbox-label">Hộp số</span>
-      <div class="gearbox-toggle" id="gearboxToggle"></div>
     </div>
 
     <h2 class="section">Chọn bài thi</h2>
@@ -293,12 +306,12 @@
         <h3>Phần thi Đường trường</h3>
         <p>Diễn ra trên đường thực tế, gồm 4 giai đoạn: xuất phát, tăng số &amp; tăng tốc độ, giảm số &amp; giảm tốc độ, dừng xe kết thúc. Trọng tâm chấm điểm là kỹ năng côn — số — ga — phanh khi tăng/giảm tốc, giữ đúng làn đường và tuân thủ hiệu lệnh của sát hạch viên. Các lỗi nghiêm trọng như choạng lái quá làn, không theo hiệu lệnh, hoặc xử lý tình huống gây tai nạn đều là lỗi liệt.</p>
         <h3>Số sàn và số tự động</h3>
-        <p>Chọn <strong>Số sàn</strong> hoặc <strong>Số tự động</strong> ngay dưới thanh chuyển chế độ. Các lỗi thao tác côn — tay số (ví dụ: dùng tay số không phù hợp, vòng tua động cơ quá mức, không vào đúng số, choạng lái khi sang số, lỗi đổi số...) chỉ áp dụng cho xe số sàn và sẽ tự ẩn khi chọn Số tự động, vì xe số tự động không có các thao tác này.</p>
+        <p>Chọn <strong>Số sàn</strong> hoặc <strong>Số tự động</strong> ngay ở màn hình bắt đầu, trước khi vào bài thi. Các lỗi thao tác côn — tay số (ví dụ: dùng tay số không phù hợp, vòng tua động cơ quá mức, không vào đúng số, choạng lái khi sang số, lỗi đổi số...) chỉ áp dụng cho xe số sàn và sẽ tự ẩn khi chọn Số tự động, vì xe số tự động không có các thao tác này. Muốn đổi lại loại bài thi hoặc hộp số, bấm mũi tên quay lại ở góc trên bên trái.</p>
         <h3>Đo quãng đường bằng GPS</h3>
         <p>Từ lúc bấm <strong>Thi thật</strong>, trang sẽ xin quyền truy cập vị trí và dùng GPS của thiết bị để ước tính quãng đường đã di chuyển, hiển thị ngay dưới điểm số. Quãng đường tạm dừng đếm khi bạn bấm <strong>Kết thúc</strong> và tiếp tục khi <strong>Tiếp tục</strong>/<strong>Thi lại</strong>. Đây chỉ là số liệu tham khảo (độ chính xác phụ thuộc tín hiệu GPS của thiết bị), không dùng để chấm điểm.</p>
         <h3>Cách dùng trang mô phỏng</h3>
         <ol>
-          <li>Chọn chế độ <em>Sa hình</em> hoặc <em>Đường trường</em>.</li>
+          <li>Ở màn hình bắt đầu, chọn loại bài thi (<em>Sa hình</em> hoặc <em>Đường trường</em>) và loại hộp số, rồi bấm <strong>Bắt đầu</strong>.</li>
           <li>Bấm <strong>Thi thật</strong> để bắt đầu tính giờ và chấm điểm từ 100.</li>
           <li>Chọn từng bài — khẩu lệnh tương ứng sẽ tự phát. Bấm nút lỗi khi muốn giả lập một lỗi bị bắt trong bài đó.</li>
           <li>Bấm <strong>Kết thúc</strong> để chốt kết quả, hoặc <strong>Thi lại</strong> để làm lại từ đầu.</li>
@@ -331,6 +344,7 @@
       </div>
     </div>
   </div>
+  </div>
 </div>
 
 <div class="sheet-overlay" id="sheetOverlay"></div>
@@ -353,7 +367,7 @@
     <p id="confirmText"></p>
     <div class="confirm-actions">
       <button class="btn btn-ghost" id="confirmStay">Ở lại</button>
-      <button class="btn btn-danger" id="confirmSwitch">Kết thúc &amp; chuyển</button>
+      <button class="btn btn-danger" id="confirmSwitch">Kết thúc</button>
     </div>
   </div>
 </div>
@@ -516,7 +530,8 @@ let isTimeoutFail = false; // trượt do quá 30s ở bài xuất phát (sa hì
 let startedAt = 0;
 let elapsedMs = 0;
 let elapsedTimer = null;
-let pendingModeSwitch = null;
+let pendingConfirmAction = null;
+let appView = "setup"; // "setup" | "exam"
 let autoTimers = [];
 let playingKey = null;
 let audioEl = new Audio();
@@ -771,30 +786,35 @@ function triggerError(err, key){
   render();
 }
 
-function switchMode(newKey){
-  if(newKey === modeKey) return;
-  if(isLive || (hasStarted && isExamPending())){
-    pendingModeSwitch = newKey;
-    $("confirmText").textContent = `Hãy Kết thúc lượt thi ${currentMode().label} hiện tại trước khi chuyển sang ${MODES.find(m=>m.key===newKey).label}.`;
-    $("confirmBox").classList.add("open");
-    return;
-  }
-  doSwitchMode(newKey);
-}
 function isExamPending(){
   // paused but not finalized (not loại, not timeout-fail) counts as "in progress"
   return hasStarted && !isLoai && !isTimeoutFail;
 }
-function doSwitchMode(newKey){
+function finalizeExamState(){
   stopSound();
   clearAutoTimers();
   clearInterval(elapsedTimer);
+  stopGpsTracking();
   isLive = false; hasStarted = false; isLoai = false; isTimeoutFail = false;
   score = 100; elapsedMs = 0; $("scoreDelta").textContent = "";
   resetHistory();
   resetGps();
-  modeKey = newKey;
-  render();
+}
+function askConfirm(text, onConfirm){
+  pendingConfirmAction = onConfirm;
+  $("confirmText").textContent = text;
+  $("confirmBox").classList.add("open");
+}
+function goBackToSetup(){
+  if(isLive || isExamPending()){
+    askConfirm(`Hãy Kết thúc lượt thi ${currentMode().label} hiện tại trước khi quay lại chọn hình thức thi.`, () => {
+      finalizeExamState();
+      showSetupView();
+    });
+    return;
+  }
+  finalizeExamState();
+  showSetupView();
 }
 
 function passedOrDone(){ return !isLoai && !isTimeoutFail && score >= PASS_THRESHOLD; }
@@ -815,8 +835,6 @@ function render(){
   } else { pill.textContent = "Sẵn sàng"; pill.className = "status-pill pill-idle"; }
 
   renderActions();
-  renderModeToggle();
-  renderGearboxToggle();
   renderChooseGrid();
   renderErrorGrid();
   renderBottomBar();
@@ -855,34 +873,55 @@ function renderActions(){
   }
 }
 
-function renderModeToggle(){
-  const box = $("modeToggle");
-  box.innerHTML = "";
-  MODES.forEach(m=>{
-    const b = document.createElement("button");
-    b.textContent = m.label;
-    if(m.key === modeKey) b.classList.add("active");
-    b.onclick = () => switchMode(m.key);
-    box.appendChild(b);
-  });
-}
-
 function setTransmission(t){
   if(t === transmission) return;
   transmission = t;
   try{ localStorage.setItem("transmission", t); }catch(e){}
-  render();
 }
-function renderGearboxToggle(){
-  const box = $("gearboxToggle");
-  box.innerHTML = "";
-  [["manual","Số sàn"],["auto","Số tự động"]].forEach(([key,label])=>{
+
+// ---------------- Màn hình chọn thiết lập (loại bài thi + hộp số) ----------------
+function renderSetupOptions(){
+  const modeBox = $("setupModeOptions");
+  modeBox.innerHTML = "";
+  const modeInfo = {
+    "sa-hinh": "11 bài trong sân sa hình + tình huống khẩn cấp",
+    "duong-truong": "4 giai đoạn lái xe trên đường thực tế",
+  };
+  MODES.forEach(m=>{
     const b = document.createElement("button");
-    b.textContent = label;
-    if(key === transmission) b.classList.add("active");
-    b.onclick = () => setTransmission(key);
-    box.appendChild(b);
+    b.className = "setup-card" + (m.key === modeKey ? " active" : "");
+    b.innerHTML = `<div class="sc-title">${m.label}</div><div class="sc-sub">${modeInfo[m.key]}</div>`;
+    b.onclick = () => { modeKey = m.key; renderSetupOptions(); };
+    modeBox.appendChild(b);
   });
+
+  const gbBox = $("setupGearboxOptions");
+  gbBox.innerHTML = "";
+  [
+    ["manual", "Số sàn", "Có ly hợp, chấm cả kỹ thuật vào/ra số"],
+    ["auto", "Số tự động", "Không thao tác số tay, chấm tốc độ & vòng tua"],
+  ].forEach(([key,label,sub])=>{
+    const b = document.createElement("button");
+    b.className = "setup-card" + (key === transmission ? " active" : "");
+    b.innerHTML = `<div class="sc-title">${label}</div><div class="sc-sub">${sub}</div>`;
+    b.onclick = () => { setTransmission(key); renderSetupOptions(); };
+    gbBox.appendChild(b);
+  });
+}
+
+function showSetupView(){
+  appView = "setup";
+  $("setupView").style.display = "";
+  $("examView").style.display = "none";
+  $("backBtn").style.visibility = "hidden";
+  renderSetupOptions();
+}
+function showExamView(){
+  appView = "exam";
+  $("setupView").style.display = "none";
+  $("examView").style.display = "";
+  $("backBtn").style.visibility = "visible";
+  render();
 }
 
 function renderChooseGrid(){
@@ -1044,11 +1083,18 @@ $("fxAnnounce").onclick = () => {
 };
 $("playingRow").onclick = stopSound;
 
-$("confirmStay").onclick = () => { pendingModeSwitch = null; $("confirmBox").classList.remove("open"); };
+$("backBtn").onclick = goBackToSetup;
+$("setupStartBtn").onclick = () => {
+  try{ localStorage.setItem("modeKey", modeKey); }catch(e){}
+  finalizeExamState();
+  showExamView();
+};
+
+$("confirmStay").onclick = () => { pendingConfirmAction = null; $("confirmBox").classList.remove("open"); };
 $("confirmSwitch").onclick = () => {
-  const target = pendingModeSwitch; pendingModeSwitch = null;
+  const fn = pendingConfirmAction; pendingConfirmAction = null;
   $("confirmBox").classList.remove("open");
-  if(target) doSwitchMode(target);
+  if(fn) fn();
 };
 
 // Theme toggle
@@ -1071,9 +1117,11 @@ $("themeBtn").onclick = () => {
 try{
   const savedTransmission = localStorage.getItem("transmission");
   if(savedTransmission === "manual" || savedTransmission === "auto") transmission = savedTransmission;
+  const savedMode = localStorage.getItem("modeKey");
+  if(savedMode === "sa-hinh" || savedMode === "duong-truong") modeKey = savedMode;
 }catch(e){}
 
-render();
+showSetupView();
 preloadAllAudio();
 </script>
 </body>
