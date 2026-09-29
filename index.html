@@ -298,7 +298,7 @@
         <h3>Số sàn và số tự động</h3>
         <p>Chọn <strong>Số sàn</strong> hoặc <strong>Số tự động</strong> ngay ở màn hình bắt đầu, trước khi vào bài thi. Các lỗi thao tác côn — tay số (ví dụ: dùng tay số không phù hợp, vòng tua động cơ quá mức, không vào đúng số, choạng lái khi sang số, lỗi đổi số...) chỉ áp dụng cho xe số sàn và sẽ tự ẩn khi chọn Số tự động, vì xe số tự động không có các thao tác này. Muốn đổi lại loại bài thi hoặc hộp số, bấm mũi tên quay lại ở góc trên bên trái.</p>
         <h3>Đo quãng đường bằng GPS</h3>
-        <p>Bấm nút gạt cạnh dòng quãng đường (ngay dưới điểm số) để bật/tắt đo GPS bất cứ lúc nào. Khi bật và bấm <strong>Thi thật</strong>, trang sẽ xin quyền truy cập vị trí và dùng GPS của thiết bị để ước tính quãng đường đã di chuyển. Quãng đường tạm dừng đếm khi bạn bấm <strong>Kết thúc</strong> và tiếp tục khi <strong>Tiếp tục</strong>/<strong>Thi lại</strong>; tắt nút gạt sẽ dừng theo dõi ngay lập tức. Đây chỉ là số liệu tham khảo (độ chính xác phụ thuộc tín hiệu GPS của thiết bị), không dùng để chấm điểm.</p>
+        <p>Bấm nút gạt cạnh dòng quãng đường (ngay dưới điểm số) để bật/tắt đo GPS bất cứ lúc nào. Khi bật và bấm <strong>Thi thật</strong>, trang sẽ xin quyền truy cập vị trí và dùng GPS của thiết bị để ước tính quãng đường đã di chuyển. Quãng đường tạm dừng đếm khi bạn bấm <strong>Kết thúc</strong> và tiếp tục khi <strong>Tiếp tục</strong>/<strong>Thi lại</strong>; tắt nút gạt sẽ dừng theo dõi ngay lập tức. Đây chỉ là số liệu tham khảo (độ chính xác phụ thuộc tín hiệu GPS của thiết bị — số ±m hiển thị kèm chính là sai số GPS hiện tại; tín hiệu yếu trong nhà/đô thị có thể khiến quãng đường tăng chậm hơn thực tế), không dùng để chấm điểm.</p>
         <h3>Cách dùng trang mô phỏng</h3>
         <ol>
           <li>Ở màn hình bắt đầu, chọn loại bài thi (<em>Sa hình</em> hoặc <em>Đường trường</em>) và loại hộp số, rồi bấm <strong>Bắt đầu</strong>.</li>
@@ -623,8 +623,11 @@ function haversineMeters(lat1, lon1, lat2, lon2){
 function onGpsFix(pos){
   const { latitude, longitude, accuracy, speed } = pos.coords;
   gpsStatus = "active";
-  // bỏ qua điểm định vị quá nhiễu (độ chính xác kém)
-  if(accuracy != null && accuracy > 40){ renderGps(); return; }
+  // Chỉ loại bỏ các điểm định vị quá tệ (khả năng đến từ định vị theo Wi-Fi/IP chứ
+  // không phải GPS thật — sai số có thể tới hàng trăm mét/km). Trước đây chặn ở 40m
+  // là quá chặt: điện thoại đi bộ/trong đô thị hoàn toàn có thể báo sai số 40-90m dù
+  // vẫn đang di chuyển thật, khiến quãng đường không tăng dù đã đi cả trăm mét.
+  if(accuracy != null && accuracy > 100){ renderGps(); return; }
 
   if(!lastGpsFix){
     lastGpsFix = { lat: latitude, lon: longitude, t: pos.timestamp, accuracy };
@@ -632,17 +635,19 @@ function onGpsFix(pos){
     return;
   }
 
-  // Nếu thiết bị tự báo tốc độ tức thời (GPS đo qua Doppler, ít nhiễu hơn nhiều so với
-  // so lệch toạ độ) và cho thấy gần như đứng yên, tin theo đó luôn — bỏ qua fix này.
-  const reportedStill = (typeof speed === "number" && speed >= 0 && speed < 0.6);
+  // Nếu thiết bị tự báo tốc độ tức thời (GPS đo qua Doppler) cho thấy gần như đứng
+  // yên hẳn thì bỏ qua fix này. Ngưỡng đặt thấp (0.3 m/s) để không nuốt luôn cả bước
+  // đi bộ chậm (~1.2-1.5 m/s) — tốc độ Doppler ở mức đi bộ có thể bị nhiễu về gần 0.
+  const reportedStill = (typeof speed === "number" && speed >= 0 && speed < 0.3);
   if(!reportedStill){
     const d = haversineMeters(lastGpsFix.lat, lastGpsFix.lon, latitude, longitude);
     const dtSec = (pos.timestamp - lastGpsFix.t) / 1000;
     const speedKmh = dtSec > 0 ? (d / dtSec) * 3.6 : 0;
-    // Ngưỡng nhiễu = tổng độ chính xác của mốc neo hiện tại + lần đo này (tối thiểu
-    // 10m) — 2 toạ độ còn lệch trong khoảng đó thì chưa chắc đã di chuyển thật.
-    const noiseFloor = Math.max((accuracy || 0) + (lastGpsFix.accuracy || 0), 10);
-    if(d >= noiseFloor && speedKmh < 150){
+    // Ngưỡng nhiễu = độ chính xác lớn hơn trong 2 lần đo, cộng thêm biên an toàn 10m.
+    // (Trước đây cộng cả 2 sai số lại — quá chặt, khiến di chuyển chậm/quãng ngắn
+    // gần như không bao giờ vượt được ngưỡng.)
+    const noiseFloor = Math.max(accuracy || 0, lastGpsFix.accuracy || 0) + 10;
+    if(d >= noiseFloor && speedKmh < 200){
       // Xác nhận đã di chuyển thật: cộng dồn quãng đường rồi dời mốc neo tới đây.
       // Nếu CHƯA vượt ngưỡng thì cố tình KHÔNG dời mốc neo, để các bước di chuyển
       // chậm/nhỏ kế tiếp tiếp tục cộng dồn so với cùng một điểm neo cho tới khi đủ
@@ -696,7 +701,7 @@ function renderGps(){
   const dot = $("gpsDot");
   $("gpsDistance").textContent = Math.round(distanceMeters) + " m";
   dot.className = "gps-dot";
-  const statusText = {
+  let statusText = {
     idle: "Sẵn sàng đo GPS",
     active: "Đang định vị GPS",
     denied: "Bạn đã từ chối quyền vị trí",
@@ -704,6 +709,11 @@ function renderGps(){
     error: "Mất tín hiệu GPS, đang thử lại…",
     off: "Đã tắt đo GPS",
   }[gpsStatus];
+  // Hiện kèm sai số GPS hiện tại để biết vì sao quãng đường có thể tăng chậm hơn
+  // thực tế khi tín hiệu yếu (trong nhà, đô thị nhiều nhà cao tầng...).
+  if(gpsStatus === "active" && lastGpsFix && lastGpsFix.accuracy != null){
+    statusText += ` (±${Math.round(lastGpsFix.accuracy)}m)`;
+  }
   $("gpsStatusText").textContent = statusText;
   if(gpsStatus === "active") dot.classList.add("live");
   else if(gpsStatus === "denied" || gpsStatus === "unavailable" || gpsStatus === "off") dot.classList.add("off");
