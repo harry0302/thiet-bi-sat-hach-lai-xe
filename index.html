@@ -980,6 +980,7 @@ function endExam(){
   clearInterval(elapsedTimer);
   stopGpsTracking();
   isLive = false;
+  speedCheck = null; // xoá luôn thanh đo tốc độ Tăng số/Giảm số đang theo dõi dở
   shuffleVanDap(); // kết thúc lượt thi thì xoá luôn tiến trình vấn đáp, về trạng thái ban đầu
   render();
 }
