@@ -141,9 +141,6 @@
   .err-btn.active{background:var(--accent);color:var(--accent-fg);border-color:var(--primary)}
   .err-badge{position:absolute;top:2px;right:2px;border-radius:5px;padding:1px 4px;font-size:8.5px;font-weight:900;background:var(--danger-soft);color:var(--danger)}
   .err-badge.critical{background:var(--danger);color:#fff}
-  .result-head{margin:22px 0 10px;font-size:15px;font-weight:800}
-  .result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .result-btn{height:56px;border-radius:16px;border:none;color:#fff;font-weight:800;font-size:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
   .about{margin-top:28px;border:1px solid var(--border);background:var(--card);border-radius:20px;padding:16px}
   .about summary{cursor:pointer;font-weight:900;font-size:14px;list-style:none}
   .about summary::-webkit-details-marker{display:none}
@@ -274,22 +271,6 @@
       </div>
     </div>
     <div class="error-grid" id="errorGrid"></div>
-
-    <div class="result-head">Kết quả bài thi</div>
-    <div class="result-grid">
-      <button class="result-btn" style="background:var(--ok)" id="btnPass">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-        Đậu
-      </button>
-      <button class="result-btn" style="background:var(--danger)" id="btnFail">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>
-        Trượt
-      </button>
-      <button class="result-btn" style="background:var(--warn)" id="btnStrip">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M14 4a2 2 0 0 0-2 2v.5"/><path d="m2 22 10-10"/><path d="m16 8 2 2"/><path d="M17.5 4.5 19 6"/><rect x="14" y="14" width="6" height="6" rx="1" transform="rotate(45 17 17)"/></svg>
-        Tước quyền
-      </button>
-    </div>
 
     <details class="about">
       <summary>📘 Tìm hiểu cách chấm điểm sát hạch lái xe</summary>
@@ -513,7 +494,6 @@ const QUICK_SOUND = {
   "sa-hinh":     { pass:"chuc-mung-ban-da-thi-dat-phan-thi-lai-xe-trong-hinh.wav", fail:"ban-da-thi-truot-2.wav" },
   "duong-truong":{ pass:"ban-da-thi-dat.wav", fail:"ban-da-thi-truot.wav" },
 };
-const STRIP_SOUND = "ban-bi-tuoc-quyen-thi.wav";
 const WELCOME_SOUND = "chao-mung.wav";
 const WARN20_SOUND = "da-qua-20s.wav";
 const WARN30_SOUND = "da-qua-30s.wav";
@@ -570,7 +550,7 @@ function preloadAllAudio(){
   }));
   GENERIC_GROUPS.forEach(g => g.items.forEach(e => files.add(e.file)));
   Object.values(QUICK_SOUND).forEach(({pass,fail}) => { files.add(pass); files.add(fail); });
-  [STRIP_SOUND, WELCOME_SOUND, WARN20_SOUND, WARN30_SOUND, "ting-ton.wav", "tun.wav"].forEach(f => files.add(f));
+  [WELCOME_SOUND, WARN20_SOUND, WARN30_SOUND, "ting-ton.wav", "tun.wav"].forEach(f => files.add(f));
   files.forEach(f => { if(f) fetch(encodeURI(`${AUDIO_BASE}/${f}`)).catch(()=>{}); });
 }
 
@@ -1061,18 +1041,6 @@ $("tableBtn").onclick = openScoreSheet;
 $("historyBtn").onclick = openHistorySheet;
 $("sheetClose").onclick = closeScoreSheet;
 $("sheetOverlay").onclick = closeScoreSheet;
-
-$("btnPass").onclick = () => playSound("quick-dau", QUICK_SOUND[modeKey].pass);
-$("btnFail").onclick = () => playSound("quick-truot", QUICK_SOUND[modeKey].fail);
-$("btnStrip").onclick = () => {
-  playSound("quick-tuoc", STRIP_SOUND);
-  if(isLive){
-    isLoai = true; isLive = false; clearAutoTimers(); clearInterval(elapsedTimer);
-    flashDelta("LOẠI");
-    logHistory(currentBai().short, "Tước quyền thi (thao tác thủ công)", null, true);
-    render();
-  }
-};
 
 $("fxTing").onclick = () => playSound("fx-ting", "ting-ton.wav");
 $("fxTun").onclick = () => playSound("fx-tun", "tun.wav");
